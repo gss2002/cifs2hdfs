@@ -42,7 +42,7 @@ public class CifsClient {
 	int maxDepth;
 	DosFileFilter dirOnly;
 	SmbFile smbFile = null;
-	NtlmPasswordAuthentication auth;
+	public NtlmPasswordAuthentication auth;
 	private List<String> smbFileList;
 
 	

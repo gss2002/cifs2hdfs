@@ -33,4 +33,4 @@ CIFS2HDFSJAR=`ls -1 $bin/lib/cifs2hdfs*.jar`
 JCIFSJAR=`ls -1 $bin/lib/jcifs*.jar`
 
 export HADOOP_CLASSPATH=$JCIFSJAR
-/usr/bin/hadoop jar $CIFS2HDFSJAR  org.apache.hadoop.cifs.mapred.CIFS2HDFSDriver "$@"
+/usr/bin/hadoop jar $CIFS2HDFSJAR  org.apache.hadoop.cifs.mapred.Cifs2HDFSDriver "$@"

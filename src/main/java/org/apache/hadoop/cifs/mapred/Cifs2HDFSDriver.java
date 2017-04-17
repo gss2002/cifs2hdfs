@@ -26,6 +26,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.cifs.CIFSParser;
+import org.apache.hadoop.cifs.password.Cifs2HDFSCredentialProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -44,6 +45,8 @@ public class Cifs2HDFSDriver {
 	static String cifshostIn;
 	static String userIdIn;
 	static String pwdIn;
+	static String pwdAlias = null;
+	static String pwdCredPath = null;
 	static String cifsdomainin;
 	static String cifsLogonTo;
 	static Integer maxDepth = -1;
@@ -69,18 +72,20 @@ public class Cifs2HDFSDriver {
 		}
 
 		options = new Options();
-		options.addOption("cifshost", true, "CIFS/SMB Server Hostname --cifshost winfileserver1.nt.example.com");
-		options.addOption("cifsdomain", true, "CIFS/SMB Domain --cifsdomain nt.example.com");
-		options.addOption("cifslogonto", true, "CIFS/SMB LogonTo --cifslogonto windc1nt, hadoopserver");
-		options.addOption("cifsfolder", true, "CIFS/SMB Server Folder --cifsfolder M201209 ");
-		options.addOption("userid", true, "CIFS/SMB Domain Userid --userid usergoeshere");
-		options.addOption("pwd", true, "CIFS/SMB Domain Password --pwd passwordgoeshere");
+		options.addOption("cifs_host", true, "CIFS/SMB Server Hostname --cifs_host winfileserver1.nt.example.com");
+		options.addOption("cifs_domain", true, "CIFS/SMB Domain --cifs_domain nt.example.com");
+		options.addOption("cifs_logonto", true, "CIFS/SMB LogonTo --cifs_logonto windc1nt, hadoopserver");
+		options.addOption("cifs_folder", true, "CIFS/SMB Server Folder --cifs_folder M201209 ");
+		options.addOption("cifs_userid", true, "CIFS/SMB Domain Userid --cifs_userid usergoeshere");
+		options.addOption("cifs_pwd", true, "CIFS/SMB Domain Password --cifs_pwd passwordgoeshere");
+	    options.addOption("cifs_hadoop_cred_path", true, "CIFS Password --cifs_hadoop_cred_path /user/username/credstore.jceks");
+	    options.addOption("cifs_pwd_alias", true, "CIFS Password Alias --cifs_pwd_alias password.alias");
 		options.addOption("cifs_transfer_limit", true,
 				"CIFS Client # of transfers to execute simultaneously should not transfer Note: 10-15 = optimal");
 		options.addOption("hdfs_outdir", true, "HDFS Output Dir --hdfs_outdir /scm/");
-		options.addOption("max_depth", true, "Max Depth to recurse --max_depth 10");
-		options.addOption("ignore_top_folder_files", false, "Ignore Top Level Folder files");
-		options.addOption("no_nested_transfer", false, "Do not nest into folders for transfer");
+		options.addOption("cifs_max_depth", true, "Max Depth to recurse --cifs_max_depth 10");
+		options.addOption("cifs_ignore_top_folder_files", false, "Ignore Top Level Folder files");
+		options.addOption("cifs_no_nested_transfer", false, "Do not nest into folders for transfer");
 		options.addOption("help", false, "Display help");
 		CommandLineParser parser = new CIFSParser();
 		CommandLine cmd = null;
@@ -91,22 +96,32 @@ public class Cifs2HDFSDriver {
 			e2.printStackTrace();
 		}
 
-		if (cmd.hasOption("cifshost") && cmd.hasOption("cifsdomain") && cmd.hasOption("cifsfolder")
-				&& cmd.hasOption("userid") && cmd.hasOption("pwd") && cmd.hasOption("hdfs_outdir")) {
-			cifshostIn = cmd.getOptionValue("cifshost");
-			cifsdomainin = cmd.getOptionValue("cifsdomain");
-			folderIn = cmd.getOptionValue("cifsfolder");
-			userIdIn = cmd.getOptionValue("userid");
-			pwdIn = cmd.getOptionValue("pwd");
+		if (cmd.hasOption("cifs_host") && cmd.hasOption("cifs_domain") && cmd.hasOption("cifs_folder")
+				&& cmd.hasOption("cifs_userid") && cmd.hasOption("hdfs_outdir")) {
+			cifshostIn = cmd.getOptionValue("cifs_host");
+			cifsdomainin = cmd.getOptionValue("cifs_domain");
+			folderIn = cmd.getOptionValue("cifs_folder");
+			userIdIn = cmd.getOptionValue("cifs_userid");
+    		if (cmd.hasOption("cifs_pwd")) {
+    			pwdIn = cmd.getOptionValue("cifs_pwd");
+    		} else if (cmd.hasOption("cifs_pwd_alias") && cmd.hasOption("cifs_hadoop_cred_path")) {
+    			pwdAlias = cmd.getOptionValue("cifs_pwd_alias");
+    			pwdCredPath = cmd.getOptionValue("cifs_hadoop_cred_path");
+    		} else {
+    			System.out.println("Missing CIFS Password / CIFS Password Alias / CIFS Hadoop Cred Path");
+    			missingParams();
+    			System.exit(0);
+    		}
+			
 			hdfsPathIn = cmd.getOptionValue("hdfs_outdir");
-			if (cmd.hasOption("ignore_top_folder_files")) {
+			if (cmd.hasOption("cifs_ignore_top_folder_files")) {
 				ignoreTopFolder = true;
 			}
-			if (cmd.hasOption("no_nested_transfer")) {
+			if (cmd.hasOption("cifs_no_nested_transfer")) {
 				noNesting = true;
 			}
-			if (cmd.hasOption("cifslogonto")) {
-				cifsLogonTo = cmd.getOptionValue("cifslogonto");
+			if (cmd.hasOption("cifs_logonto")) {
+				cifsLogonTo = cmd.getOptionValue("cifs_logonto");
 
 			} else {
 				cifsLogonTo = null;
@@ -115,8 +130,8 @@ public class Cifs2HDFSDriver {
 				cifsTransferLimitTrue = true;
 				cifsTransferLimit = cmd.getOptionValue("cifs_transfer_limit");
 			}
-			if (cmd.hasOption("max_depth")) {
-				maxDepth=Integer.valueOf(cmd.getOptionValue("max_depth"));
+			if (cmd.hasOption("cifs_max_depth")) {
+				maxDepth=Integer.valueOf(cmd.getOptionValue("cifs_max_depth"));
 			}
 
 		} else {
@@ -147,6 +162,21 @@ public class Cifs2HDFSDriver {
 
 		if (cifsLogonTo != null) {
 			conf.set(Constants.CIFS2HDFS_LOGON_TO, cifsLogonTo);
+		}
+		conf.set("mapreduce.map.java.opts", "-Xmx5120m");
+		if (pwdCredPath != null && pwdAlias != null) {
+			String pwdCredPathHdfs =pwdCredPath;
+			conf.set("hadoop.security.credential.provider.path", pwdCredPathHdfs);
+			conf.set(Constants.CIFS2HDFS_PASS_ALIAS, pwdAlias);
+			String pwdAlias = conf.get(Constants.CIFS2HDFS_PASS_ALIAS);
+			if (pwdAlias != null) {
+				Cifs2HDFSCredentialProvider creds = new Cifs2HDFSCredentialProvider();
+				char[] pwdChars = creds.getCredentialString(conf.get("hadoop.security.credential.provider.path"), conf.get(Constants.CIFS2HDFS_PASS_ALIAS), conf);
+				if (pwdChars == null) {
+					System.out.println("Invalid URI for Password Alias or CredPath");
+					System.exit(1);
+				}
+			}
 		}
 
 		// propagate delegation related props from launcher job to MR job

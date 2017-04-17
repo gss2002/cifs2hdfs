@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.cifs.CifsClient;
+import org.apache.hadoop.cifs.password.Cifs2HDFSCredentialProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
@@ -52,6 +53,11 @@ public class Cifs2HDFSInputFormat extends FileInputFormat<Text, NullWritable> {
 		List<InputSplit> splits = new ArrayList<InputSplit>();
 		Configuration conf = job.getConfiguration();
 		String pwd = conf.get(Constants.CIFS2HDFS_PASS);
+		String pwdAlias = conf.get(Constants.CIFS2HDFS_PASS_ALIAS);
+		if (pwdAlias != null) {
+			Cifs2HDFSCredentialProvider creds = new Cifs2HDFSCredentialProvider();
+			pwd = new String(creds.getCredentialString(conf.get("hadoop.security.credential.provider.path"), conf.get(Constants.CIFS2HDFS_PASS_ALIAS), conf));
+		}
 		Integer maxDepth = conf.getInt(Constants.CIFS2HDFS_MAXDEPTH, -1);
 
 		cifsClient = new CifsClient(conf.get(Constants.CIFS2HDFS_LOGON_TO), conf.get(Constants.CIFS2HDFS_USERID), pwd,

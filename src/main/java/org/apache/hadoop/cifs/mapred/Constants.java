@@ -42,6 +42,8 @@ public class Constants
  	= "cifs2hdfs.logon.to"; 
   public static final String CIFS2HDFS_MAXDEPTH
  	= "cifs2hdfs.maxdepth"; 
+  public static final String CIFS2HDFS_PASS_ALIAS
+		= "cifs2hdfs.password.alias";
 }
 
 
