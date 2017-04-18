@@ -77,16 +77,22 @@ public class Cifs2HDFSThread extends Thread {
 
 				ugi.doAs(new PrivilegedExceptionAction<Void>() {
 					public Void run() throws Exception {
-						System.out.println("HDFSPath: " + hdfsPath);
-						System.out.println("SmbFile: " + smbFile.getPath());
-						downloadFile(smbFile, hdfsPath);
+						if (smbFile.canRead()) {
+							System.out.println("SmbFile: " + smbFile.getPath());
+							downloadFile(smbFile, hdfsPath);
+						} else {
+							System.out.println("Unable to read: "+smbFile.getPath());
+						}
 						return null;
 					}
 				});
 			} else {
-				System.out.println("HDFSPath: " + hdfsPath);
-				System.out.println("SmbFile: " + smbFile.getPath());
-				downloadFile(smbFile, hdfsPath);
+				if (smbFile.canRead()) {
+					System.out.println("SmbFile: " + smbFile.getPath());
+					downloadFile(smbFile, hdfsPath);
+				} else {
+					System.out.println("Unable to read: "+smbFile.getPath());
+				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -149,9 +155,12 @@ public class Cifs2HDFSThread extends Thread {
 			} catch (IOException e) {
 				e.printStackTrace(System.err);
 			}
-			out.close();
-			in.close();
-
+			if (out != null) {
+				out.close();
+			}
+			if (in != null) {
+				in.close();
+			}
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

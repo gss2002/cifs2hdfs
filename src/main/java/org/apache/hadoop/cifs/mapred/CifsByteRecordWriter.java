@@ -73,53 +73,63 @@ public class CifsByteRecordWriter extends RecordWriter<Text, NullWritable> {
 	public void write(Text key, NullWritable value) throws IOException {
 
 		String remoteFileIn = key.toString();
-		String parentPath = path.getParent().toString();
-		String fileOut = remoteFileIn.replace(cifsHost, "").replace(cifsFolder, "").replace("smb://", "").replace(" ",
-				"_");
-		String fileString = parentPath + "/" + fileOut;
-		Path file = new Path(fileString);
-		Path parPath = file.getParent();
-		this.fs = file.getFileSystem(conf);
-		if (!(fs.exists(parPath))) {
-			fs.mkdirs(parPath);
-		}
 		SmbFile remoteFile = new SmbFile(remoteFileIn, cifsClient.auth);
-		this.out = fs.create(file, false);
+		if (remoteFile.canRead()) {
+			String parentPath = path.getParent().toString();
+			String fileOut = remoteFileIn.replace(cifsHost, "").replace(cifsFolder, "").replace("smb://", "")
+					.replace(" ", "_");
+			String fileString = parentPath + "/" + fileOut;
+			Path file = new Path(fileString);
+			Path parPath = file.getParent();
+			this.fs = file.getFileSystem(conf);
+			if (!(fs.exists(parPath))) {
+				fs.mkdirs(parPath);
+			}
 
-		key = null;
-		value = null;
-		LOG.info("CIFS Client Downloading" + remoteFileIn);
+			this.out = fs.create(file, false);
 
-		// This reads the bytes from the SMBFile inputStream below it's buffered
-		// with 1MB and uses a BufferedInputStream as CIFS getInputStream
-		// is NOT buffered
-		try {
-			byte[] buf = new byte[1048576];
-			int bytes_read = 0;
+			key = null;
+			value = null;
+			LOG.info("CIFS Client Downloading" + remoteFileIn);
 
-			this.in = new BufferedInputStream(remoteFile.getInputStream());
+			// This reads the bytes from the SMBFile inputStream below it's
+			// buffered
+			// with 1MB and uses a BufferedInputStream as CIFS getInputStream
+			// is NOT buffered
+			try {
+				byte[] buf = new byte[1048576];
+				int bytes_read = 0;
 
-			do {
-				bytes_read = in.read(buf, 0, buf.length);
+				this.in = new BufferedInputStream(remoteFile.getInputStream());
 
-				if (bytes_read < 0) {
-					/* Handle EOF however you want */
-				}
+				do {
+					bytes_read = in.read(buf, 0, buf.length);
 
-				if (bytes_read > 0)
-					out.write(buf, 0, bytes_read);
-				out.flush();
+					if (bytes_read < 0) {
+						/* Handle EOF however you want */
+					}
 
-			} while (bytes_read >= 0);
+					if (bytes_read > 0)
+						out.write(buf, 0, bytes_read);
+					out.flush();
 
-		} catch (IOException e) {
-			e.printStackTrace(System.err);
+				} while (bytes_read >= 0);
+
+			} catch (IOException e) {
+				e.printStackTrace(System.err);
+			}
+		} else {
+			LOG.error("Unable to read: " + remoteFile.getPath().toString());
 		}
 	}
 
 	@Override
 	public void close(TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
-		this.out.close();
-		this.in.close();
+		if (out != null) {
+			this.out.close();
+		}
+		if (in != null) {
+			this.in.close();
+		}
 	}
 }
