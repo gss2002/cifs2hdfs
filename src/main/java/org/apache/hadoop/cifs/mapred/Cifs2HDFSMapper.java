@@ -18,7 +18,6 @@
 
 package org.apache.hadoop.cifs.mapred;
 
-
 import org.apache.hadoop.mapreduce.Mapper;
 
 import java.io.IOException;
@@ -27,14 +26,10 @@ import java.io.IOException;
  * Base sqoop mapper class that is convenient place for common functionality.
  * Other specific mappers are highly encouraged to inherit from this class.
  */
-public abstract class Cifs2HDFSMapper<KI, VI, KO, VO>
-  extends Mapper<KI, VI, KO, VO> {
-	
+public abstract class Cifs2HDFSMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, VO> {
 
-
-  @Override
-  protected void setup(Context context)
-    throws IOException, InterruptedException {
-    super.setup(context);
-  }
+	@Override
+	protected void setup(Context context) throws IOException, InterruptedException {
+		super.setup(context);
+	}
 }

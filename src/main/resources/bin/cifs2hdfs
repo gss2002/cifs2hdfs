@@ -32,7 +32,7 @@ CIFS2HDFSJAR=`ls -1 $bin/lib/cifs2hdfs*.jar`
 JCIFSJAR=`ls -1 $bin/lib/jcifs*.jar`
 
 if [ -e $JAVA_HOME/bin/java ] ; then
-        $JAVA_HOME/bin/java -cp "$CIFS2HDFSJAR:$JCIFSJAR:$HADOOP_CLIENT_LIBS/*" org.apache.hadoop.cifs.CIFS2HDFSClient "$@"
+        $JAVA_HOME/bin/java -cp "$CIFS2HDFSJAR:$JCIFSJAR:$HADOOP_CLIENT_LIBS/*" org.apache.hadoop.cifs.Cifs2HdfsClient "$@"
 else
         echo "Java Defined for Hadoop Missing on Node"
         exit 1

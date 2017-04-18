@@ -60,11 +60,11 @@ public class Cifs2HDFSInputFormat extends FileInputFormat<Text, NullWritable> {
 			cifsFile = conf.get(Constants.CIFS2HDFS_FILENAME);
 		}
 
-
 		String pwdAlias = conf.get(Constants.CIFS2HDFS_PASS_ALIAS);
 		if (pwdAlias != null) {
 			Cifs2HDFSCredentialProvider creds = new Cifs2HDFSCredentialProvider();
-			pwd = new String(creds.getCredentialString(conf.get("hadoop.security.credential.provider.path"), conf.get(Constants.CIFS2HDFS_PASS_ALIAS), conf));
+			pwd = new String(creds.getCredentialString(conf.get("hadoop.security.credential.provider.path"),
+					conf.get(Constants.CIFS2HDFS_PASS_ALIAS), conf));
 		}
 		Integer maxDepth = conf.getInt(Constants.CIFS2HDFS_MAXDEPTH, -1);
 

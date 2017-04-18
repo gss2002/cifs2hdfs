@@ -5,15 +5,19 @@ import jcifs.smb.SmbFile;
 import jcifs.smb.SmbFilenameFilter;
 
 public class CifsFileFilter implements SmbFilenameFilter {
-    private final String regex;
+	protected String wildcard;
 
-    public CifsFileFilter(String filename) {
-        regex = filename;
-    }
+	public CifsFileFilter(String wildcard) {
+		this.wildcard = wildcard;
+	}
 
-    @Override
-    public boolean accept(SmbFile dir, String name) throws SmbException {
-        return name.matches(regex);
-    }
-
+	@Override
+	public boolean accept(SmbFile dir, String name) throws SmbException {
+		// TODO Auto-generated method stub
+		if (this.wildcard.contains("*")) {
+			return name.contains(wildcard.replace("*", ""));
+		} else {
+			return name.equals(wildcard);
+		}
+	}
 }

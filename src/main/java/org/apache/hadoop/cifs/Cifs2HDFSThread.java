@@ -42,22 +42,11 @@ public class Cifs2HDFSThread extends Thread {
 				} else {
 					ugi = UserGroupInformation.getCurrentUser();
 				}
-				System.out.println("UserId for Hadoop: " + ugi.getUserName());
 			} catch (IOException e3) {
 				// TODO Auto-generated catch block
 				e3.printStackTrace();
 				System.out.println("Exception Getting Credentials Exiting!");
 				System.exit(1);
-			}
-
-			System.out.println("HasCredentials: " + ugi.hasKerberosCredentials());
-			System.out.println("UserShortName: " + ugi.getShortUserName());
-			try {
-				System.out.println("Login KeyTab Based: " + UserGroupInformation.isLoginKeytabBased());
-				System.out.println("Login Ticket Based: " + UserGroupInformation.isLoginTicketBased());
-			} catch (IOException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
 			}
 		}
 
@@ -87,7 +76,6 @@ public class Cifs2HDFSThread extends Thread {
 			if (UserGroupInformation.isSecurityEnabled()) {
 
 				ugi.doAs(new PrivilegedExceptionAction<Void>() {
-
 					public Void run() throws Exception {
 						System.out.println("HDFSPath: " + hdfsPath);
 						System.out.println("SmbFile: " + smbFile.getPath());
@@ -100,8 +88,6 @@ public class Cifs2HDFSThread extends Thread {
 				System.out.println("SmbFile: " + smbFile.getPath());
 				downloadFile(smbFile, hdfsPath);
 			}
-
-			// Catch and and all exceptions.
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -123,7 +109,8 @@ public class Cifs2HDFSThread extends Thread {
 			// CIFS/SMb share and removes the CIFS Servername, initialpath
 			// and filename as it provides no value to the folder created in
 			// HDFS
-			String filePath = remoteFile.getPath().replace(this.cifsHost, "").replace("smb://", "").replace(" ", "_");
+			String filePath = remoteFile.getPath().replace(this.cifsHost, "").replaceAll(this.cifsFolder, "")
+					.replace("smb://", "").replace(" ", "_");
 			System.out.println("Transfering File: " + filename + " From " + filePath);
 
 			// This checks and creates a new Path structure w/ the HDFS Path
@@ -131,9 +118,11 @@ public class Cifs2HDFSThread extends Thread {
 			// came from the
 			// Cifs server
 			Path hdfsWritePath = new Path(hdfsPath + "/" + filePath);
-
+			Path parentPath = hdfsWritePath.getParent();
+			if (!(fileSystem.exists(parentPath))) {
+				fileSystem.mkdirs(parentPath);
+			}
 			FSDataOutputStream out = fileSystem.create(hdfsWritePath);
-
 			// This reads the bytes from the SMBFile inputStream below it's
 			// buffered with 1MB and uses a BufferedInputStream as CIFS
 			// getInputStream
@@ -182,7 +171,6 @@ public class Cifs2HDFSThread extends Thread {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
 	}
 
 	// This gets the Hadoop Configuration files loads them into a Configuration
@@ -193,6 +181,5 @@ public class Cifs2HDFSThread extends Thread {
 		conf.addResource(new Path("/etc/hadoop/conf/hdfs-site.xml"));
 		conf.addResource(new Path("/etc/hadoop/conf/mapred-site.xml"));
 		conf.addResource(new Path("/etc/hadoop/conf/yarn-site.xml"));
-
 	}
 }

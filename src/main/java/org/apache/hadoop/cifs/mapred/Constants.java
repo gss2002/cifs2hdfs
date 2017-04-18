@@ -18,32 +18,17 @@
 
 package org.apache.hadoop.cifs.mapred;
 
-public class Constants
-{
-  public static final String CIFS2HDFS_HOST
-      = "cifs2hdfs.host";
-  public static final String CIFS2HDFS_USERID
-      = "cifs2hdfs.userid";
-  public static final String CIFS2HDFS_PASS
-		= "cifs2hdfs.password";
-  public static final String CIFS2HDFS_DOMAIN
-	= "cifs2hdfs.domain";
-  public static final String CIFS2HDFS_FILENAME
-	= "cifs2hdfs.filename";
-  public static final String CIFS2HDFS_NO_NEST 
- 	= "cifs2hdfs.no.nest";  
-  public static final String CIFS2HDFS_IGNORE_TOP_LEVEL_FOLDER_FILES 
- 	= "cifs2hdfs.ignore.top.level.folder.files";  
-  public static final String CIFS2HDFS_OUTPUTDIR 
- 	= "cifs2hdfs.hdfs.outdir";
-  public static final String CIFS2HDFS_FOLDER
- 	= "cifs2hdfs.folder"; 
-  public static final String CIFS2HDFS_LOGON_TO
- 	= "cifs2hdfs.logon.to"; 
-  public static final String CIFS2HDFS_MAXDEPTH
- 	= "cifs2hdfs.maxdepth"; 
-  public static final String CIFS2HDFS_PASS_ALIAS
-		= "cifs2hdfs.password.alias";
+public class Constants {
+	public static final String CIFS2HDFS_HOST = "cifs2hdfs.host";
+	public static final String CIFS2HDFS_USERID = "cifs2hdfs.userid";
+	public static final String CIFS2HDFS_PASS = "cifs2hdfs.password";
+	public static final String CIFS2HDFS_DOMAIN = "cifs2hdfs.domain";
+	public static final String CIFS2HDFS_FILENAME = "cifs2hdfs.filename";
+	public static final String CIFS2HDFS_NO_NEST = "cifs2hdfs.no.nest";
+	public static final String CIFS2HDFS_IGNORE_TOP_LEVEL_FOLDER_FILES = "cifs2hdfs.ignore.top.level.folder.files";
+	public static final String CIFS2HDFS_OUTPUTDIR = "cifs2hdfs.hdfs.outdir";
+	public static final String CIFS2HDFS_FOLDER = "cifs2hdfs.folder";
+	public static final String CIFS2HDFS_LOGON_TO = "cifs2hdfs.logon.to";
+	public static final String CIFS2HDFS_MAXDEPTH = "cifs2hdfs.maxdepth";
+	public static final String CIFS2HDFS_PASS_ALIAS = "cifs2hdfs.password.alias";
 }
-
-

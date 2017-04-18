@@ -71,7 +71,7 @@ public class Cifs2HdfsClient {
 	// These define the Smb/CIFS file handle into the thread
 	// They also define Hadoop Security Configuration allowing the program to
 	// talk directly to HDFS
-	static Configuration conf;
+	static Configuration hdpConf;
 	static UserGroupInformation ugi;
 	SmbFile f;
 	SmbFile inSmbFile;
@@ -138,7 +138,6 @@ public class Cifs2HdfsClient {
 				missingParams();
 				System.exit(0);
 			}
-
 			hdfsPath = cmd.getOptionValue("hdfs_outdir");
 			if (cmd.hasOption("cifs_ignore_top_folder_files")) {
 				ignoreTopFolder = true;
@@ -148,7 +147,6 @@ public class Cifs2HdfsClient {
 			}
 			if (cmd.hasOption("cifs_logonto")) {
 				cifsLogonTo = cmd.getOptionValue("cifs_logonto");
-
 			} else {
 				cifsLogonTo = null;
 			}
@@ -175,7 +173,6 @@ public class Cifs2HdfsClient {
 			keytabupn = cmd.getOptionValue("krb_upn");
 			File keytabFile = new File(keytab);
 			if (keytabFile.exists()) {
-
 				if (!(keytabFile.canRead())) {
 					System.out.println("KeyTab  exists but cannot read it - exiting");
 					missingParams();
@@ -186,11 +183,10 @@ public class Cifs2HdfsClient {
 				missingParams();
 				System.exit(1);
 			}
-
 		}
 
 		setConfig();
-		UserGroupInformation.setConfiguration(conf);
+		UserGroupInformation.setConfiguration(hdpConf);
 		if (UserGroupInformation.isSecurityEnabled()) {
 			try {
 				if (setKrb == true) {
@@ -219,26 +215,28 @@ public class Cifs2HdfsClient {
 
 		if (pwdCredPath != null && pwdAlias != null) {
 			String pwdCredPathHdfs = pwdCredPath;
-			conf.set("hadoop.security.credential.provider.path", pwdCredPathHdfs);
-			conf.set(Constants.CIFS2HDFS_PASS_ALIAS, pwdAlias);
-			String pwdAlias = conf.get(Constants.CIFS2HDFS_PASS_ALIAS);
+			hdpConf.set("hadoop.security.credential.provider.path", pwdCredPathHdfs);
+			hdpConf.set(Constants.CIFS2HDFS_PASS_ALIAS, pwdAlias);
+			String pwdAlias = hdpConf.get(Constants.CIFS2HDFS_PASS_ALIAS);
 			if (pwdAlias != null) {
 				char[] pwdChars = null;
 				try {
 					if (UserGroupInformation.isSecurityEnabled()) {
+						System.out.println("SecEnabled: " + true);
 						pwdChars = ugi.doAs(new PrivilegedExceptionAction<char[]>() {
 							public char[] run() throws Exception {
 								Cifs2HDFSCredentialProvider creds = new Cifs2HDFSCredentialProvider();
-								char[] pwdChars = creds.getCredentialString(
-										conf.get("hadoop.security.credential.provider.path"),
-										conf.get(Constants.CIFS2HDFS_PASS_ALIAS), conf);
-								return pwdChars;
+								char[] pwdChar = creds.getCredentialString(
+										hdpConf.get("hadoop.security.credential.provider.path"),
+										hdpConf.get(Constants.CIFS2HDFS_PASS_ALIAS), hdpConf);
+								return pwdChar;
 							}
 						});
 					} else {
+						System.out.println("SecEnabled: " + false);
 						Cifs2HDFSCredentialProvider creds = new Cifs2HDFSCredentialProvider();
-						pwdChars = creds.getCredentialString(conf.get("hadoop.security.credential.provider.path"),
-								conf.get(Constants.CIFS2HDFS_PASS_ALIAS), conf);
+						pwdChars = creds.getCredentialString(hdpConf.get("hadoop.security.credential.provider.path"),
+								conf.get(Constants.CIFS2HDFS_PASS_ALIAS), hdpConf);
 					}
 				} catch (IOException | InterruptedException e) {
 					// TODO Auto-generated catch block
@@ -271,15 +269,14 @@ public class Cifs2HdfsClient {
 				String fileName = cifsFileList.get(i);
 				Cifs2HDFSThread sc = null;
 				try {
-					sc = new Cifs2HDFSThread(new SmbFile(fileName, cifsClient.auth), hdfsPath, cifsHost, cifsFolder, setKrb, keytabupn, keytab);
+					sc = new Cifs2HDFSThread(new SmbFile(fileName, cifsClient.auth), hdfsPath, cifsHost, cifsFolder,
+							setKrb, keytabupn, keytab);
 				} catch (MalformedURLException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				sc.start();
-
 			}
-
 		}
 	}
 
@@ -295,23 +292,21 @@ public class Cifs2HdfsClient {
 	// throughout the program
 	public static void getFS() {
 		try {
-			fileSystem = FileSystem.get(conf);
+			fileSystem = FileSystem.get(hdpConf);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
 	}
 
 	// This gets the Hadoop Configuration files loads them into a Configuration
 	// object for use throughout the program
 	public static void setConfig() {
-		conf = new Configuration();
-		conf.addResource(new Path("/etc/hadoop/conf/core-site.xml"));
-		conf.addResource(new Path("/etc/hadoop/conf/hdfs-site.xml"));
-		conf.addResource(new Path("/etc/hadoop/conf/mapred-site.xml"));
-		conf.addResource(new Path("/etc/hadoop/conf/yarn-site.xml"));
-
+		hdpConf = new Configuration();
+		hdpConf.addResource(new Path("/etc/hadoop/conf/core-site.xml"));
+		hdpConf.addResource(new Path("/etc/hadoop/conf/hdfs-site.xml"));
+		hdpConf.addResource(new Path("/etc/hadoop/conf/mapred-site.xml"));
+		hdpConf.addResource(new Path("/etc/hadoop/conf/yarn-site.xml"));
 	}
 
 }
