@@ -39,25 +39,24 @@ import org.apache.hadoop.util.GenericOptionsParser;
 public class Cifs2HDFSDriver {
 	static Options options;
 	static FileSystem fileSystem;
-	static String hdfsPathIn;
+	static String hdfsPath;
 	static String srv_path;
-	static String folderIn;
-	static String cifshostIn;
-	static String userIdIn;
-	static String pwdIn;
+	static String cifsFolder;
+	static String cifsHost;
+	static String userId;
+	static String pwd;
 	static String pwdAlias = null;
 	static String pwdCredPath = null;
-	static String cifsdomainin;
+	static String cifsDomain;
 	static String cifsLogonTo;
+	static String cifsFile;
 	static Integer maxDepth = -1;
-	static boolean nesTed = false;
 	static boolean ignoreTopFolder = false;
 	static boolean noNesting = false;
 	static boolean cifsTransferLimitTrue = false;
 	static String cifsTransferLimit = null;
 
 	public static void main(String[] args) {
-		String hdfsIn = null;
 
 		// This handles parsing args.. This is a really crappy implementation. I
 		// have a better one I can share from Commons-cli package
@@ -76,6 +75,7 @@ public class Cifs2HDFSDriver {
 		options.addOption("cifs_domain", true, "CIFS/SMB Domain --cifs_domain nt.example.com");
 		options.addOption("cifs_logonto", true, "CIFS/SMB LogonTo --cifs_logonto windc1nt, hadoopserver");
 		options.addOption("cifs_folder", true, "CIFS/SMB Server Folder --cifs_folder M201209 ");
+		options.addOption("cifs_file", true, "CIFS/SMB Server Single File filename.csv or filename*");
 		options.addOption("cifs_userid", true, "CIFS/SMB Domain Userid --cifs_userid usergoeshere");
 		options.addOption("cifs_pwd", true, "CIFS/SMB Domain Password --cifs_pwd passwordgoeshere");
 	    options.addOption("cifs_hadoop_cred_path", true, "CIFS Password --cifs_hadoop_cred_path /user/username/credstore.jceks");
@@ -98,12 +98,12 @@ public class Cifs2HDFSDriver {
 
 		if (cmd.hasOption("cifs_host") && cmd.hasOption("cifs_domain") && cmd.hasOption("cifs_folder")
 				&& cmd.hasOption("cifs_userid") && cmd.hasOption("hdfs_outdir")) {
-			cifshostIn = cmd.getOptionValue("cifs_host");
-			cifsdomainin = cmd.getOptionValue("cifs_domain");
-			folderIn = cmd.getOptionValue("cifs_folder");
-			userIdIn = cmd.getOptionValue("cifs_userid");
+			cifsHost = cmd.getOptionValue("cifs_host");
+			cifsDomain = cmd.getOptionValue("cifs_domain");
+			cifsFolder = cmd.getOptionValue("cifs_folder");
+			userId = cmd.getOptionValue("cifs_userid");
     		if (cmd.hasOption("cifs_pwd")) {
-    			pwdIn = cmd.getOptionValue("cifs_pwd");
+    			pwd = cmd.getOptionValue("cifs_pwd");
     		} else if (cmd.hasOption("cifs_pwd_alias") && cmd.hasOption("cifs_hadoop_cred_path")) {
     			pwdAlias = cmd.getOptionValue("cifs_pwd_alias");
     			pwdCredPath = cmd.getOptionValue("cifs_hadoop_cred_path");
@@ -113,7 +113,7 @@ public class Cifs2HDFSDriver {
     			System.exit(0);
     		}
 			
-			hdfsPathIn = cmd.getOptionValue("hdfs_outdir");
+			hdfsPath = cmd.getOptionValue("hdfs_outdir");
 			if (cmd.hasOption("cifs_ignore_top_folder_files")) {
 				ignoreTopFolder = true;
 			}
@@ -133,6 +133,11 @@ public class Cifs2HDFSDriver {
 			if (cmd.hasOption("cifs_max_depth")) {
 				maxDepth=Integer.valueOf(cmd.getOptionValue("cifs_max_depth"));
 			}
+			if (cmd.hasOption("cifs_file")) {
+				cifsFile = cmd.getOptionValue("cifs_file");
+				maxDepth = -1;
+				noNesting = true;
+			}
 
 		} else {
 			missingParams();
@@ -142,16 +147,20 @@ public class Cifs2HDFSDriver {
 		if (System.getProperty("oozie.action.conf.xml") != null) {
 			conf.addResource(new Path("file:///", System.getProperty("oozie.action.conf.xml")));
 		}
-		conf.set(Constants.CIFS2HDFS_HOST, cifshostIn);
-		conf.set(Constants.CIFS2HDFS_USERID, userIdIn);
-		if (pwdIn != null) {
-			conf.set(Constants.CIFS2HDFS_PASS, pwdIn);
+		conf.set(Constants.CIFS2HDFS_HOST, cifsHost);
+		conf.set(Constants.CIFS2HDFS_USERID, userId);
+		if (pwd != null) {
+			conf.set(Constants.CIFS2HDFS_PASS, pwd);
 		}
-		if (cifsdomainin != null) {
-			conf.set(Constants.CIFS2HDFS_DOMAIN, cifsdomainin);
+		if (cifsDomain != null) {
+			conf.set(Constants.CIFS2HDFS_DOMAIN, cifsDomain);
 		}
-		if (folderIn != null) {
-			conf.set(Constants.CIFS2HDFS_FOLDER, folderIn);
+		if (cifsFolder != null) {
+			conf.set(Constants.CIFS2HDFS_FOLDER, cifsFolder);
+		}
+		
+		if (cifsFile != null) {
+			conf.set(Constants.CIFS2HDFS_FILENAME, cifsFile);
 		}
 		
 		if (maxDepth != -1) {
@@ -187,10 +196,10 @@ public class Cifs2HDFSDriver {
 		}
 
 		String jobname = null;
-		if (folderIn != null) {
-			jobname = cifshostIn + "_" + folderIn;
+		if (cifsFolder != null) {
+			jobname = cifsHost + "_" + cifsFolder;
 		} else {
-			jobname = cifshostIn;
+			jobname = cifsHost;
 		}
 		if (cifsTransferLimitTrue) {
 			conf.set("mapreduce.job.running.map.limit", cifsTransferLimit);
@@ -208,7 +217,7 @@ public class Cifs2HDFSDriver {
 			job.setOutputValueClass(NullWritable.class);
 			job.setMapperClass(Cifs2HDFSCoreMapper.class);
 			job.setNumReduceTasks(0);
-			FileOutputFormat.setOutputPath(job, new Path(hdfsPathIn));
+			FileOutputFormat.setOutputPath(job, new Path(hdfsPath));
 
 			job.waitForCompletion(true);
 		} catch (IOException | ClassNotFoundException | InterruptedException e) {

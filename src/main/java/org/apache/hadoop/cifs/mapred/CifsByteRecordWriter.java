@@ -75,7 +75,7 @@ public class CifsByteRecordWriter extends RecordWriter<Text, NullWritable> {
 
     		String remoteFileIn = key.toString();
     		String parentPath = path.getParent().toString();
-            String fileOut = remoteFileIn.replace(cifsHost, "").replace(cifsFolder, "").replace("smb://", "");
+            String fileOut = remoteFileIn.replace(cifsHost, "").replace(cifsFolder, "").replace("smb://", "").replace(" ", "_");
             String fileString = parentPath+"/"+fileOut;
             Path file = new Path(fileString);
             SmbFile remoteFile = new SmbFile(remoteFileIn, cifsClient.auth);

@@ -18,19 +18,12 @@
 
 package org.apache.hadoop.cifs;
 
-import java.io.BufferedInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetAddress;
 import java.net.MalformedURLException;
-import java.net.UnknownHostException;
 import java.security.PrivilegedExceptionAction;
+import java.util.List;
 
-import jcifs.smb.DosFileFilter;
-import jcifs.smb.NtlmPasswordAuthentication;
-import jcifs.smb.SmbException;
 import jcifs.smb.SmbFile;
 
 import org.apache.commons.cli.CommandLine;
@@ -38,371 +31,287 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.hadoop.cifs.mapred.Constants;
+import org.apache.hadoop.cifs.password.Cifs2HDFSCredentialProvider;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.GenericOptionsParser;
 
-public class Cifs2HdfsClient extends Thread {
+public class Cifs2HdfsClient {
 
-	// Static's these won't change they are defined once and only once at start of java program
-	static FileSystem fileSystem;
-    static String hdfsPathIn;
-    static String srv_path;
-	static String folderIn;
-	static String cifshostIn;
-	static String userIdIn;
-	static String pwdIn;
-	static String cifsdomainin;
+	// Static's these won't change they are defined once and only once at start
+	// of java program
+	static Options options;
+	static String hdfsPath;
+	static String srv_path;
+	static String cifsFolder;
+	static String cifsHost;
+	static String userId;
+	static String pwd;
+	static String pwdAlias = null;
+	static String pwdCredPath = null;
+	static String cifsDomain;
 	static String cifsLogonTo;
-	static boolean nesTed=false;
-	static boolean ignoreTopFolder=false;
-	static boolean noNesting=false;
+	static String cifsFile;
+	static Integer maxDepth = -1;
+	static boolean ignoreTopFolder = false;
+	static boolean noNesting = false;
+	static boolean cifsTransferLimitTrue = false;
+	static String cifsTransferLimit = null;
+	private static CifsClient cifsClient;
+	private static List<String> cifsFileList;
+	private static FileSystem fileSystem;
+	static boolean setKrb = false;
+	static String keytab = null;
+	static String keytabupn = null;
 
-	// These are used at Thread creation time during the recursion of the files. These define the Smb/CIFS file handle into the thread
-	// They also define Hadoop Security Configuration allowing the program to talk directly to HDFS
-	Configuration conf;
-    UserGroupInformation ugi;
-    SmbFile f;
-    SmbFile inSmbFile;
-    int maxDepth;
+	// These are used at Thread creation time during the recursion of the files.
+	// These define the Smb/CIFS file handle into the thread
+	// They also define Hadoop Security Configuration allowing the program to
+	// talk directly to HDFS
+	static Configuration conf;
+	static UserGroupInformation ugi;
+	SmbFile f;
+	SmbFile inSmbFile;
 
-    
-    // This allows a new instance of CifsHdfsClient to allow threads to run. This also passes the OS Kerberos ticket from the user running
-    // the job to the specific threads that were created from the main method.
-    Cifs2HdfsClient( SmbFile f, int maxDepth) {
-        this.f = f;
-        this.maxDepth = maxDepth;
-        // Goes to get hadoop configuration files
-    	setConfig();
-	    try {
-	    	UserGroupInformation.setConfiguration(conf);
-	    	ugi = UserGroupInformation.getCurrentUser();
-	    	System.out.println("User for HDFS: "+ugi.getUserName());
-	    } catch (IOException e3) {
-	    	// TODO Auto-generated catch block
-	    	e3.printStackTrace();
-	    }
-	    ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
-	    ugi.setConfiguration(conf);
-	    // Goes to get Hadoop File System Named Node information and such from the configuration.
-	    getFS();
-    }
+	// This is the main.. This starts the entire program execution.
+	public static void main(String[] args) {
 
-    void downloadCaller(SmbFile fileIn, boolean nested) {
-    	// This says it found a file and to go initiate the file download
-    	inSmbFile = fileIn;
-    	nesTed=nested;
-        try {
-        	//Used for Debug commented out
-        	//System.out.println("SecurityUserNameonThreadFromKerberos: "+ugi.getShortUserName());
-        	
-        	// This block of code in the ugi.doAs is stating execute the downloadFile function with the UserGroupInformation Security
-        	// handle
-            ugi.doAs(new PrivilegedExceptionAction<Void>() {
+		// This handles parsing args.. This is a really crappy implementation. I
+		// have a better one I can share from Commons-cli package
 
-                public Void run() throws Exception {
-                	System.out.println("HDFSPath: "+hdfsPathIn);
-                	System.out.println("InFile: "+inSmbFile);
-
-                	downloadFile(inSmbFile, hdfsPathIn, nesTed);
-                    return null;
-                }
-            });
-        
-         // Catch and and all exceptions.
-        } catch (Exception e) {
-        	e.printStackTrace();
-        }
-    }
-
-    // The traverse method is used in the main to get the initial directory listing and then its used
-    // in each thread to drill through the directories to get to the files
-    // This is also where the execution of the HDFS file load occurs
-    void traverse( SmbFile f, int depth) throws MalformedURLException, IOException {
-    	boolean nested = false;
-        if( depth == 0 ) {
-            return;
-        }
-
-        // This gets the file handle and gets the initial file list.
-        if (f.isDirectory()) {
-        	SmbFile[] l = f.listFiles();
-        	nested=true;
-       
-        	for(int i = 0; l != null && i < l.length; i++ ) {
-        		try {
-        			// We don't care about trying to download a directory as it has no representation in Smb/CIFS land
-        			// We just continue to traverse the structure
-        			if( l[i].isDirectory() ) {
-        				traverse( l[i], depth-1 );
-                 
-        			} else {
-        				// This says it found a file and to go initiate the file download
-        				inSmbFile = l[i];
-        				downloadCaller(inSmbFile, nested);
-                    
-        			}
-                
-        		} catch( IOException ioe ) {
-        			System.out.println( l[i] + ":" );
-        			ioe.printStackTrace( System.out );
-        		}
-        	}
-        } else {
-			downloadCaller(f, nested);
-
-        }
-    }
-    // Seeing that the class extends run this says execute the folders found in the main on a seperate thread.
-    public void run() {
-        try {
-            traverse( f, maxDepth );
-        } catch( Exception ex ) {
-            ex.printStackTrace();
-        }
-    }
-
-    // This function initiaites the filedownload from the traverse and passes the data directly into HDFS...
-    public void downloadFile(SmbFile remoteFile, String hdfsPath, boolean nested) {
+		Configuration conf = new Configuration();
+		String[] otherArgs = null;
 		try {
-			// Create a Handle to Java InputStream to prepare to recieve file bytes from SmbFile getInputStream function.
-			InputStream in = null;
-
-			// Create a Handle on the root HDFS Path location if it doesn't exist exit..
-            Path rootpath = new Path(hdfsPath);
-            if (!(fileSystem.exists(rootpath))) {
-                    System.out.println("Upload Path does not exist: Exiting");          
-                    System.exit(1);
-            }
-            // This gets the remoteFile(SmbFile) Handle name from the CIFS/SMb File Share and turns it into a String
-            String filename = remoteFile.getName();
-            
-            // This gets the remoteFile(SmbFile) Handle Path name from the CIFS/SMb share and removes the CIFS Servername, initialpath
-            // and filename as it provides no value to the folder created in HDFS
-            String filePath = remoteFile.getPath().replace(cifshostIn, "").replace(folderIn, "").replace("smb://", "").replace(filename, "");
-            System.out.println("Transfering File: "+filename+" From "+filePath);
-
-            // This checks and creates a new Path structure w/ the HDFS Path location specified along with the folder name of the file that came from the
-            // Cifs server
-            Path hdfsWritePath;
-
-            if (nested) {
-            	if (!(fileSystem.exists(new Path(filePath)))) {
-            		fileSystem.mkdirs(new Path(filePath));
-            	}
-            
-            	// This creates the file handle into HDFS based on the hdfsRootPath/CIFS Server File path and file name. This then
-            	//opens up a file handle as a FSDataoutputstream directly into HDFS 
-                System.out.println("Transfering File: "+filename+" From "+remoteFile.getPath().replace(cifshostIn, "").replace("smb://", "").replace(filename, ""));
-            	 hdfsWritePath = new Path(hdfsPath+"/"+filePath+"/"+filename);
-            } else {
-                System.out.println("Transfering File: "+filename+" From "+remoteFile.getPath().replace(cifshostIn, "").replace("smb://", "").replace(filename, ""));
-            	 hdfsWritePath = new Path(hdfsPath+"/"+filename);
-
-            }
-			FSDataOutputStream out = fileSystem.create(hdfsWritePath);
-            
-            // This reads the bytes from the SMBFile inputStream below it's buffered with 1MB and uses a BufferedInputStream as CIFS getInputStream
-            // is NOT buffered
-            try {
-                byte[] buf = new byte[1048576];
-                int bytes_read = 0;
-               
-                in = new BufferedInputStream(remoteFile.getInputStream());
-
-                do {
-                    bytes_read = in.read(buf, 0, buf.length);
-
-                    if (bytes_read < 0) {
-                        /* Handle EOF however you want */
-                    }
-
-                    if (bytes_read > 0)
-                         out.write(buf, 0, bytes_read);
-                    	out.flush();
-
-                } while (bytes_read >= 0);
-
-
-            } catch (IOException e) {
-                e.printStackTrace(System.err);
-            }
-            out.close();
-			in.close();
-						
-
-		} catch (FileNotFoundException e) {
+			otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
+		} catch (IOException e4) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			e4.printStackTrace();
 		}
-   
-    }
-	
-	//This gets the HDFS File System Config and stores it in a variable for use throughout the program
-	  public void getFS() {
-	        try {
-				fileSystem = FileSystem.get(conf);
+
+		options = new Options();
+		options.addOption("cifs_host", true, "CIFS/SMB Server Hostname --cifs_host winfileserver1.nt.example.com");
+		options.addOption("cifs_domain", true, "CIFS/SMB Domain --cifs_domain nt.example.com");
+		options.addOption("cifs_logonto", true, "CIFS/SMB LogonTo --cifs_logonto windc1nt, hadoopserver");
+		options.addOption("cifs_folder", true, "CIFS/SMB Server Folder --cifs_folder M201209 ");
+		options.addOption("cifs_file", true, "CIFS/SMB Server Single File filename.csv or filename*");
+		options.addOption("cifs_userid", true, "CIFS/SMB Domain Userid --cifs_userid usergoeshere");
+		options.addOption("cifs_pwd", true, "CIFS/SMB Domain Password --cifs_pwd passwordgoeshere");
+		options.addOption("cifs_hadoop_cred_path", true,
+				"CIFS Password --cifs_hadoop_cred_path /user/username/credstore.jceks");
+		options.addOption("cifs_pwd_alias", true, "CIFS Password Alias --cifs_pwd_alias password.alias");
+		options.addOption("cifs_transfer_limit", true,
+				"CIFS Client # of transfers to execute simultaneously should not transfer Note: 10-15 = optimal");
+		options.addOption("hdfs_outdir", true, "HDFS Output Dir --hdfs_outdir /scm/");
+		options.addOption("cifs_max_depth", true, "Max Depth to recurse --cifs_max_depth 10");
+		options.addOption("cifs_ignore_top_folder_files", false, "Ignore Top Level Folder files");
+		options.addOption("cifs_no_nested_transfer", false, "Do not nest into folders for transfer");
+		options.addOption("krb_keytab", true, "KeyTab File to Connect to HDFS --krb_keytab $HOME/S00000.keytab");
+		options.addOption("krb_upn", true,
+				"Kerberos Princpial for Keytab to Connect to HDFS --krb_upn S00000@EXAMP.EXAMPLE.COM");
+		options.addOption("help", false, "Display help");
+		CommandLineParser parser = new CIFSParser();
+		CommandLine cmd = null;
+
+		try {
+			cmd = parser.parse(options, otherArgs);
+		} catch (ParseException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
+
+		if (cmd.hasOption("cifs_host") && cmd.hasOption("cifs_domain") && cmd.hasOption("cifs_folder")
+				&& cmd.hasOption("cifs_userid") && cmd.hasOption("hdfs_outdir")) {
+			cifsHost = cmd.getOptionValue("cifs_host");
+			cifsDomain = cmd.getOptionValue("cifs_domain");
+			cifsFolder = cmd.getOptionValue("cifs_folder");
+			userId = cmd.getOptionValue("cifs_userid");
+			if (cmd.hasOption("cifs_pwd")) {
+				pwd = cmd.getOptionValue("cifs_pwd");
+			} else if (cmd.hasOption("cifs_pwd_alias") && cmd.hasOption("cifs_hadoop_cred_path")) {
+				pwdAlias = cmd.getOptionValue("cifs_pwd_alias");
+				pwdCredPath = cmd.getOptionValue("cifs_hadoop_cred_path");
+			} else {
+				System.out.println("Missing CIFS Password / CIFS Password Alias / CIFS Hadoop Cred Path");
+				missingParams();
+				System.exit(0);
+			}
+
+			hdfsPath = cmd.getOptionValue("hdfs_outdir");
+			if (cmd.hasOption("cifs_ignore_top_folder_files")) {
+				ignoreTopFolder = true;
+			}
+			if (cmd.hasOption("cifs_no_nested_transfer")) {
+				noNesting = true;
+			}
+			if (cmd.hasOption("cifs_logonto")) {
+				cifsLogonTo = cmd.getOptionValue("cifs_logonto");
+
+			} else {
+				cifsLogonTo = null;
+			}
+			if (cmd.hasOption("cifs_transfer_limit")) {
+				cifsTransferLimitTrue = true;
+				cifsTransferLimit = cmd.getOptionValue("cifs_transfer_limit");
+			}
+			if (cmd.hasOption("cifs_max_depth")) {
+				maxDepth = Integer.valueOf(cmd.getOptionValue("cifs_max_depth"));
+			}
+			if (cmd.hasOption("cifs_file")) {
+				cifsFile = cmd.getOptionValue("cifs_file");
+				maxDepth = -1;
+				noNesting = true;
+			}
+
+		} else {
+			missingParams();
+			System.exit(0);
+		}
+		if (cmd.hasOption("krb_keytab") && cmd.hasOption("krb_upn")) {
+			setKrb = true;
+			keytab = cmd.getOptionValue("krb_keytab");
+			keytabupn = cmd.getOptionValue("krb_upn");
+			File keytabFile = new File(keytab);
+			if (keytabFile.exists()) {
+
+				if (!(keytabFile.canRead())) {
+					System.out.println("KeyTab  exists but cannot read it - exiting");
+					missingParams();
+					System.exit(1);
+				}
+			} else {
+				System.out.println("KeyTab doesn't exist  - exiting");
+				missingParams();
+				System.exit(1);
+			}
+
+		}
+
+		setConfig();
+		UserGroupInformation.setConfiguration(conf);
+		if (UserGroupInformation.isSecurityEnabled()) {
+			try {
+				if (setKrb == true) {
+					ugi = UserGroupInformation.loginUserFromKeytabAndReturnUGI(keytabupn, keytab);
+				} else {
+					ugi = UserGroupInformation.getCurrentUser();
+				}
+				System.out.println("UserId for Hadoop: " + ugi.getUserName());
+			} catch (IOException e3) {
+				// TODO Auto-generated catch block
+				e3.printStackTrace();
+				System.out.println("Exception Getting Credentials Exiting!");
+				System.exit(1);
+			}
+
+			System.out.println("HasCredentials: " + ugi.hasKerberosCredentials());
+			System.out.println("UserShortName: " + ugi.getShortUserName());
+			try {
+				System.out.println("Login KeyTab Based: " + UserGroupInformation.isLoginKeytabBased());
+				System.out.println("Login Ticket Based: " + UserGroupInformation.isLoginTicketBased());
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
+
+		if (pwdCredPath != null && pwdAlias != null) {
+			String pwdCredPathHdfs = pwdCredPath;
+			conf.set("hadoop.security.credential.provider.path", pwdCredPathHdfs);
+			conf.set(Constants.CIFS2HDFS_PASS_ALIAS, pwdAlias);
+			String pwdAlias = conf.get(Constants.CIFS2HDFS_PASS_ALIAS);
+			if (pwdAlias != null) {
+				char[] pwdChars = null;
+				try {
+					if (UserGroupInformation.isSecurityEnabled()) {
+						pwdChars = ugi.doAs(new PrivilegedExceptionAction<char[]>() {
+							public char[] run() throws Exception {
+								Cifs2HDFSCredentialProvider creds = new Cifs2HDFSCredentialProvider();
+								char[] pwdChars = creds.getCredentialString(
+										conf.get("hadoop.security.credential.provider.path"),
+										conf.get(Constants.CIFS2HDFS_PASS_ALIAS), conf);
+								return pwdChars;
+							}
+						});
+					} else {
+						Cifs2HDFSCredentialProvider creds = new Cifs2HDFSCredentialProvider();
+						pwdChars = creds.getCredentialString(conf.get("hadoop.security.credential.provider.path"),
+								conf.get(Constants.CIFS2HDFS_PASS_ALIAS), conf);
+					}
+				} catch (IOException | InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				if (pwdChars == null) {
+					System.out.println("Invalid URI for Password Alias or CredPath");
+					System.exit(1);
+				} else {
+					pwd = new String(pwdChars);
+				}
+			}
+
+			cifsClient = new CifsClient(cifsLogonTo, userId, pwd, cifsDomain, Integer.valueOf(maxDepth), noNesting);
+
+			SmbFile smbFileConn = cifsClient.createInitialConnection(cifsHost, cifsFolder);
+
+			try {
+				cifsClient.traverse(smbFileConn, Integer.valueOf(maxDepth), ignoreTopFolder, cifsFile);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			cifsFileList = cifsClient.getFileList();
+			int cifsCount = cifsFileList.size();
 
-	    }
-	 
-	  // This gets the Hadoop Configuration files loads them into a Configuration object for use throughout the program
-	    public void setConfig(){
-	    	conf = new Configuration();
-	    	conf.addResource(new Path("/etc/hadoop/conf/core-site.xml"));
-	    	conf.addResource(new Path("/etc/hadoop/conf/hdfs-site.xml"));
-	    	conf.addResource(new Path("/etc/hadoop/conf/mapred-site.xml"));
-	    	conf.addResource(new Path("/etc/hadoop/conf/yarn-site.xml"));
-
-	    }
-	 
-	    // This is the main.. This starts the entire program execution.
-	    public static void main(String[] args) {
-	    	String hdfsIn = null;
-	    	
-	    	// This handles parsing args.. This is a really crappy implementation. I have a better one I can share from Commons-cli package
-	    	
-	    	Configuration conf = new Configuration();
-		    String[] otherArgs = null;
-			try {
-				otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-			} catch (IOException e4) {
-				// TODO Auto-generated catch block
-				e4.printStackTrace();
-			}
-			
-		    Options options = new Options();
-		    options.addOption("cifshost", true, "CIFS/SMB Server Hostname --cifshost winfileserver1.nt.example.com");
-		    options.addOption("cifsdomain", true, "CIFS/SMB Domain --cifsdomain nt.example.com");
-		    options.addOption("cifslogonto", true, "CIFS/SMB LogonTo --cifslogonto windc1nt, hadoopserver");
-		    options.addOption("cifsfolder", true, "CIFS/SMB Server Folder --cifsfolder M201209 ");
-		    options.addOption("userid", true, "CIFS/SMB Domain Userid --userid usergoeshere");
-		    options.addOption("pwd", true, "CIFS/SMB Domain Password --pwd passwordgoeshere");
-		    options.addOption("hdfs_outdir", true, "HDFS Output Dir --hdfs_outdir /scm/");
-		    options.addOption("ignore_top_folder_files" , false, "Ignore Top Level Folder files");
-		    options.addOption("no_nested_transfer", false , "Do not nest into folders for transfer");
-		    options.addOption("help", false, "Display help");
-		    CommandLineParser parser = new CIFSParser();
-		    CommandLine cmd = null;
-			try {
-				cmd = parser.parse( options, otherArgs);
-			} catch (ParseException e2) {
-				// TODO Auto-generated catch block
-				e2.printStackTrace();
-			}
-	    	
-		    if (cmd.hasOption("cifshost") && cmd.hasOption("cifsdomain") && cmd.hasOption("cifsfolder") && cmd.hasOption("userid") && cmd.hasOption("pwd") &&
-		    		cmd.hasOption("hdfs_outdir")) {
-		    	cifshostIn = cmd.getOptionValue("cifshost");
-		    	cifsdomainin = cmd.getOptionValue("cifsdomain");
-		    	folderIn = cmd.getOptionValue("cifsfolder");
-		    	userIdIn = cmd.getOptionValue("userid");
-		    	pwdIn = cmd.getOptionValue("pwd");
-		    	hdfsPathIn = cmd.getOptionValue("hdfs_outdir");
-		    	if (cmd.hasOption("ignore_top_folder_files")) {
-		    		ignoreTopFolder = true;
-		    	}
-		    	if (cmd.hasOption("no_nested_transfer")) {
-		    		noNesting=true;
-		    	}
-		    	if (cmd.hasOption("cifslogonto")) {
-		    		cifsLogonTo = cmd.getOptionValue("cifslogonto");
-
-		    	} else {
-		    		cifsLogonTo = null;
-		    	}
-		    	
-		    } else {
-		    	 String header = "Do something useful with an input file\n\n";
-		    	 String footer = "\nPlease report issues at http://example.com/issues";
-		    	 HelpFormatter formatter = new HelpFormatter();
-		    	 formatter.printHelp("get", header, options, footer, true);
-		    	 System.exit(0);
-		    }
-	    	
-			
-			
-			InetAddress inetAddress = null;
-			try {
-				inetAddress = InetAddress.getByName(cifsdomainin);
-			} catch (UnknownHostException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-
-    	    // Sets ups JCIFS which is acutally the library used to make the CIFS/SMB Call via Java
-	    	jcifs.Config.setProperty("jcifs.smb.client.listSize", "1200");
-	    	jcifs.Config.setProperty("jcifs.smb.client.attrExpirationPeriod", "0");
-	        jcifs.Config.setProperty("jcifs.netbios.wins", inetAddress.getHostAddress().toString() );
-	        // This spoofs logon rights
-	        if (cifsLogonTo != null) {
-	        	jcifs.Config.setProperty("jcifs.netbios.hostname", cifsLogonTo.toUpperCase());
-
-	        } else {
-	        	jcifs.Config.setProperty("jcifs.netbios.hostname", "W"+userIdIn.toUpperCase());
-	        }
-			NtlmPasswordAuthentication auth = new NtlmPasswordAuthentication(cifsdomainin, userIdIn, pwdIn);
-			SmbFile f = null;
-			// Concats the cifshostin with the initial folder name
-			srv_path = cifshostIn+folderIn;
-		    try {
-				f = new SmbFile("smb://"+srv_path, auth);
-			} catch (MalformedURLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		    
-		    // Creates a filter on * with attributes of directory only
-		    DosFileFilter everything = new DosFileFilter( "*", SmbFile.ATTR_DIRECTORY );
-
-
-	        int maxDepth = Integer.parseInt("7");
-
-
-	        SmbFile[] l = null;
-			try {
-				if (ignoreTopFolder) {
-					l = f.listFiles(everything);
-				} else {
-					l = f.listFiles();
+			// Spins up a thread per directory to allow some parallelism..
+			// Theoretically this can be run as a Mapreduce job
+			for (int i = 0; i < cifsCount; i++) {
+				String fileName = cifsFileList.get(i);
+				Cifs2HDFSThread sc = null;
+				try {
+					sc = new Cifs2HDFSThread(new SmbFile(fileName, cifsClient.auth), hdfsPath, cifsHost, cifsFolder, setKrb, keytabupn, keytab);
+				} catch (MalformedURLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
+				sc.start();
 
-			} catch (SmbException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			}
-			// Spins up a thread per directory to allow some parallelism.. Theoretically this can be run as a Mapreduce job
-	        for (int i = 0; i < l.length; i++) {
-	        	if (noNesting) {
-	        		try {
-						if (!(l[i].isDirectory())) {
-				            Cifs2HdfsClient sc = new Cifs2HdfsClient( l[i], maxDepth );
-				            sc.start();	
-						}
-					} catch (SmbException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-	        	} else {
-		            Cifs2HdfsClient sc = new Cifs2HdfsClient( l[i], maxDepth );
-		            sc.start();
-	        	}
 
+		}
+	}
 
-	        }
-			
-	    }
-	
-	
-	
+	private static void missingParams() {
+		String header = "CIFS to HDFS Client";
+		String footer = "\nPlease report issues at http://github.com/gss2002";
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.printHelp("get", header, options, footer, true);
+		System.exit(0);
+	}
+
+	// This gets the HDFS File System Config and stores it in a variable for use
+	// throughout the program
+	public static void getFS() {
+		try {
+			fileSystem = FileSystem.get(conf);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	// This gets the Hadoop Configuration files loads them into a Configuration
+	// object for use throughout the program
+	public static void setConfig() {
+		conf = new Configuration();
+		conf.addResource(new Path("/etc/hadoop/conf/core-site.xml"));
+		conf.addResource(new Path("/etc/hadoop/conf/hdfs-site.xml"));
+		conf.addResource(new Path("/etc/hadoop/conf/mapred-site.xml"));
+		conf.addResource(new Path("/etc/hadoop/conf/yarn-site.xml"));
+
+	}
+
 }
-

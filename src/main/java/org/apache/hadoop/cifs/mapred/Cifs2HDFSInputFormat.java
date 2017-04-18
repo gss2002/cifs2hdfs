@@ -51,8 +51,16 @@ public class Cifs2HDFSInputFormat extends FileInputFormat<Text, NullWritable> {
 	@Override
 	public List<InputSplit> getSplits(JobContext job) throws IOException {
 		List<InputSplit> splits = new ArrayList<InputSplit>();
+		String cifsFile = null;
 		Configuration conf = job.getConfiguration();
 		String pwd = conf.get(Constants.CIFS2HDFS_PASS);
+		boolean ignoreTopFolder = conf.getBoolean(Constants.CIFS2HDFS_IGNORE_TOP_LEVEL_FOLDER_FILES, false);
+		boolean noNesting = conf.getBoolean(Constants.CIFS2HDFS_NO_NEST, false);
+		if (conf.get(Constants.CIFS2HDFS_FILENAME) != null) {
+			cifsFile = conf.get(Constants.CIFS2HDFS_FILENAME);
+		}
+
+
 		String pwdAlias = conf.get(Constants.CIFS2HDFS_PASS_ALIAS);
 		if (pwdAlias != null) {
 			Cifs2HDFSCredentialProvider creds = new Cifs2HDFSCredentialProvider();
@@ -61,11 +69,11 @@ public class Cifs2HDFSInputFormat extends FileInputFormat<Text, NullWritable> {
 		Integer maxDepth = conf.getInt(Constants.CIFS2HDFS_MAXDEPTH, -1);
 
 		cifsClient = new CifsClient(conf.get(Constants.CIFS2HDFS_LOGON_TO), conf.get(Constants.CIFS2HDFS_USERID), pwd,
-				conf.get(Constants.CIFS2HDFS_DOMAIN), Integer.valueOf(maxDepth));
+				conf.get(Constants.CIFS2HDFS_DOMAIN), Integer.valueOf(maxDepth), noNesting);
 
 		SmbFile smbFileConn = cifsClient.createInitialConnection(conf.get(Constants.CIFS2HDFS_HOST),
 				conf.get(Constants.CIFS2HDFS_FOLDER));
-		cifsClient.traverse(smbFileConn, Integer.valueOf(maxDepth));
+		cifsClient.traverse(smbFileConn, Integer.valueOf(maxDepth), ignoreTopFolder, cifsFile);
 		cifsFileList = cifsClient.getFileList();
 		int count = cifsFileList.size();
 		LOG.info("CIFS Splits: " + count);

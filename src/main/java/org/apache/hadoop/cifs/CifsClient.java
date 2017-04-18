@@ -36,7 +36,6 @@ public class CifsClient {
 	String pwd;
 	String cifsdomain;
     String cifsLogonTo;
-	boolean nested = false;
     boolean ignoreTopFolder = false;
 	boolean noNesting = false;
 	int maxDepth;
@@ -55,16 +54,18 @@ public class CifsClient {
 	 * @param      pwd    the system password.
 	 * @param      cifsDomain the Cifs/Smb Logon Domain.
 	 * @param      maxDepth the maxDepth to nest into folders.
+	 * @param      noNesting do not go beyond current folder.
 	 * @exception  IndexOutOfBoundsException  if the <code>offset</code>
 	 *               and <code>count</code> arguments index characters outside
 	 *               the bounds of the <code>value</code> array.
 	 */
 
-	public CifsClient(String cifsLogonTo, String userId, String pwd, String cifsDomain, Integer maxDepth) {
+	public CifsClient(String cifsLogonTo, String userId, String pwd, String cifsDomain, Integer maxDepth, boolean noNesting) {
 		this.pwd = pwd;
 		this.cifsLogonTo = cifsLogonTo;
 		this.userId = userId;
 		this.cifsdomain = cifsDomain;
+		this.noNesting = noNesting;
 		
 		try {
 			inetAddress = InetAddress.getByName(cifsdomain);
@@ -111,29 +112,44 @@ public class CifsClient {
     // The traverse method is used in the main to get the initial directory listing and then its used
     // in each thread to drill through the directories to get to the files
     // This is also where the execution of the HDFS file load occurs
-    public void traverse( SmbFile f, int depth) throws MalformedURLException, IOException {
+    public void traverse( SmbFile f, int depth, boolean ignoreTopFolder, String cifsFile) throws MalformedURLException, IOException {
+    	boolean fileOnly = false;
+		CifsFileFilter fileFilter = null;
+
     	if (smbFileList == null) {
     		smbFileList = new ArrayList<String>();
+    	}
+    	if (cifsFile != null){
+    		fileOnly = true;
+    		fileFilter = new CifsFileFilter(cifsFile);
     	}
         if( depth == 0 ) {
             return;
         }
 
         // This gets the file handle and gets the initial file list.
-        if (f.isDirectory()) {
-        	SmbFile[] l = f.listFiles();
+        if (f.isDirectory() && !(noNesting)) {
+        	SmbFile[] l;
+        	if (ignoreTopFolder){
+        		l = f.listFiles(dirOnly);
+        	} else if(fileOnly) {
+            	l=f.listFiles(fileFilter);
+        	} else {
+            	l = f.listFiles();
+        	}
        
         	for(int i = 0; l != null && i < l.length; i++ ) {
         		try {
         			// We don't care about trying to download a directory as it has no representation in Smb/CIFS land
         			// We just continue to traverse the structure
         			if( l[i].isDirectory() || depth != -1) {
-        				traverse( l[i], depth-1 );
+        				traverse( l[i], depth-1, false, null );
                  
         			} else {
         				// This says it found a file and to go initiate the file download
-        
-        				smbFileList.add(l[i].getURL().toString());                 
+        				if (!(ignoreTopFolder)) {
+        					smbFileList.add(l[i].getURL().toString()); 
+        				}
         			}
                 
         		} catch( IOException ioe ) {
@@ -142,7 +158,9 @@ public class CifsClient {
         		}
         	}
         } else {
-			smbFileList.add(f.getURL().toString());                 
+			if (!(ignoreTopFolder)) {
+				smbFileList.add(f.getURL().toString());
+			}
         }
     }
     
