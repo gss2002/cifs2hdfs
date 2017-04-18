@@ -43,6 +43,7 @@ public class Cifs2HdfsClient {
 
 	// Static's these won't change they are defined once and only once at start
 	// of java program
+	static Object objectWaiter = new Object();
 	static Options options;
 	static String hdfsPath;
 	static String srv_path;
@@ -265,12 +266,27 @@ public class Cifs2HdfsClient {
 
 			// Spins up a thread per directory to allow some parallelism..
 			// Theoretically this can be run as a Mapreduce job
+			ThreadGroup cifsTg = new ThreadGroup("CifsThreadGroup");
+
 			for (int i = 0; i < cifsCount; i++) {
 				String fileName = cifsFileList.get(i);
 				Cifs2HDFSThread sc = null;
+				if (cifsTransferLimitTrue) {
+					while (Integer.valueOf(cifsTransferLimit) == cifsTg.activeCount()) {
+						synchronized (objectWaiter) {
+							try {
+								objectWaiter.wait(10000L);
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+						}
+					}
+				}
 				try {
-					sc = new Cifs2HDFSThread(new SmbFile(fileName, cifsClient.auth), hdfsPath, cifsHost, cifsFolder,
-							setKrb, keytabupn, keytab);
+					String threadName = "cifs" + i;
+					sc = new Cifs2HDFSThread(cifsTg, threadName, new SmbFile(fileName, cifsClient.auth), hdfsPath,
+							cifsHost, cifsFolder, setKrb, keytabupn, keytab);
 				} catch (MalformedURLException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();

@@ -23,8 +23,9 @@ public class Cifs2HDFSThread extends Thread {
 	String cifsFolder;
 	FileSystem fileSystem;
 
-	public Cifs2HDFSThread(SmbFile smbFile, String hdfsPath, String cifsHost, String cifsFolder, boolean setKrb,
-			String keytabupn, String keytab) {
+	public Cifs2HDFSThread(ThreadGroup tg, String name, SmbFile smbFile, String hdfsPath, String cifsHost,
+			String cifsFolder, boolean setKrb, String keytabupn, String keytab) {
+		super(tg, name);
 		this.smbFile = smbFile;
 		this.hdfsPath = hdfsPath;
 		this.cifsHost = cifsHost;
@@ -81,7 +82,7 @@ public class Cifs2HDFSThread extends Thread {
 							System.out.println("SmbFile: " + smbFile.getPath());
 							downloadFile(smbFile, hdfsPath);
 						} else {
-							System.out.println("Unable to read: "+smbFile.getPath());
+							System.out.println("Unable to read: " + smbFile.getPath());
 						}
 						return null;
 					}
@@ -91,7 +92,7 @@ public class Cifs2HDFSThread extends Thread {
 					System.out.println("SmbFile: " + smbFile.getPath());
 					downloadFile(smbFile, hdfsPath);
 				} else {
-					System.out.println("Unable to read: "+smbFile.getPath());
+					System.out.println("Unable to read: " + smbFile.getPath());
 				}
 			}
 		} catch (Exception e) {
