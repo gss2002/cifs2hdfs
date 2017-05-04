@@ -1,5 +1,5 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
+f * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
@@ -206,8 +206,8 @@ public class Cifs2HDFSDriver {
 		}
 
 		try {
-			@SuppressWarnings("deprecation")
-			Job job = new Job(conf, "CIFS2HDFS-" + jobname);
+
+			Job job = Job.getInstance(conf, "CIFS2HDFS-" + jobname);
 			job.addCacheFile(new Path("/apps/cifs2hdfs/jcifs.jar").toUri());
 			job.addArchiveToClassPath(new Path("/apps/cifs2hdfs/jcifs.jar"));
 			job.setJarByClass(Cifs2HDFSDriver.class);

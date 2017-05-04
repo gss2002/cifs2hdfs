@@ -12,7 +12,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.apache.hadoop.cifs</groupId>
 	<artifactId>cifs2hdfs</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.1</version>
 	<name>CIFS2HDFS TransferEngine</name>
 	<packaging>jar</packaging>
 
