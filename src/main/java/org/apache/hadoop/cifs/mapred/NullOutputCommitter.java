@@ -15,21 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.hadoop.cifs.mapred;
 
-import org.apache.hadoop.mapreduce.Mapper;
 
-import java.io.IOException;
+import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.OutputCommitter;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- * Base sqoop mapper class that is convenient place for common functionality.
- * Other specific mappers are highly encouraged to inherit from this class.
+ * OutputCommitter instance that does nothing.
  */
-public abstract class Cifs2HDFSMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, VO> {
+public class NullOutputCommitter extends OutputCommitter {
 
-	@Override
-	protected void setup(Context context) throws IOException, InterruptedException {
-		super.setup(context);
-	}
+  public void abortTask(TaskAttemptContext taskContext) { }
+
+  public void cleanupJob(JobContext jobContext) { }
+
+  public void commitTask(TaskAttemptContext taskContext) { }
+
+  public boolean needsTaskCommit(TaskAttemptContext taskContext) {
+    return false;
+  }
+
+  public void setupJob(JobContext jobContext) { }
+
+  public void setupTask(TaskAttemptContext taskContext) { }
+
 }

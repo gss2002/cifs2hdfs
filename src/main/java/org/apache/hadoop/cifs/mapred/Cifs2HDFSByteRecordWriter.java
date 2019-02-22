@@ -26,7 +26,7 @@ import java.io.InputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.cifs.CifsClient;
-import org.apache.hadoop.cifs.password.Cifs2HDFSCredentialProvider;
+import org.apache.hadoop.cifs.password.CifsCredentialProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -37,7 +37,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 import jcifs.smb.SmbFile;
 
-public class CifsByteRecordWriter extends RecordWriter<Text, NullWritable> {
+public class Cifs2HDFSByteRecordWriter extends RecordWriter<Text, NullWritable> {
 	private DataOutputStream out;
 	private Configuration conf;
 	private FileSystem fs;
@@ -48,22 +48,22 @@ public class CifsByteRecordWriter extends RecordWriter<Text, NullWritable> {
 	private InputStream in = null;
 	private static final Log LOG = LogFactory.getLog(Cifs2HDFSOutputFormat.class.getName());
 
-	public CifsByteRecordWriter(Path path, Configuration confIn) {
-		String pwd = confIn.get(Constants.CIFS2HDFS_PASS);
-		String pwdAlias = confIn.get(Constants.CIFS2HDFS_PASS_ALIAS);
+	public Cifs2HDFSByteRecordWriter(Path path, Configuration confIn) {
+		String pwd = confIn.get(Constants.CIFS_PASS);
+		String pwdAlias = confIn.get(Constants.CIFS_PASS_ALIAS);
 		if (pwdAlias != null) {
 			LOG.info("Cred Provider: " + confIn.get("hadoop.security.credential.provider.path"));
-			LOG.info("Cred Alias: " + confIn.get(Constants.CIFS2HDFS_PASS_ALIAS));
+			LOG.info("Cred Alias: " + confIn.get(Constants.CIFS_PASS_ALIAS));
 
-			Cifs2HDFSCredentialProvider creds = new Cifs2HDFSCredentialProvider();
+			CifsCredentialProvider creds = new CifsCredentialProvider();
 			pwd = new String(creds.getCredentialString(confIn.get("hadoop.security.credential.provider.path"),
-					confIn.get(Constants.CIFS2HDFS_PASS_ALIAS), confIn));
+					confIn.get(Constants.CIFS_PASS_ALIAS), confIn));
 		}
-		LOG.info("CIFS2HDFS_HOST: " + confIn.get(Constants.CIFS2HDFS_HOST));
-		this.cifsClient = new CifsClient(confIn.get(Constants.CIFS2HDFS_LOGON_TO),
-				confIn.get(Constants.CIFS2HDFS_USERID), pwd, confIn.get(Constants.CIFS2HDFS_DOMAIN), -1, false);
-		this.cifsHost = confIn.get(Constants.CIFS2HDFS_HOST);
-		this.cifsFolder = confIn.get(Constants.CIFS2HDFS_FOLDER);
+		LOG.info("CIFS_HOST: " + confIn.get(Constants.CIFS_HOST));
+		this.cifsClient = new CifsClient(confIn.get(Constants.CIFS_LOGON_TO),
+				confIn.get(Constants.CIFS_USERID), pwd, confIn.get(Constants.CIFS_DOMAIN), -1, false);
+		this.cifsHost = confIn.get(Constants.CIFS_HOST);
+		this.cifsFolder = confIn.get(Constants.CIFS2HDFS_INPUT_FOLDER);
 
 		this.conf = confIn;
 		this.path = path;

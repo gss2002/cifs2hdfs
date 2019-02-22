@@ -18,23 +18,18 @@
 
 package org.apache.hadoop.cifs.mapred;
 
-import java.io.IOException;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.RecordWriter;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.Mapper;
 
-public class Cifs2HDFSOutputFormat extends FileOutputFormat<Text, NullWritable> {
+import java.io.IOException;
+
+/**
+ * Base sqoop mapper class that is convenient place for common functionality.
+ * Other specific mappers are highly encouraged to inherit from this class.
+ */
+public abstract class CifsMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, VO> {
 
 	@Override
-	public RecordWriter<Text, NullWritable> getRecordWriter(TaskAttemptContext taskAttemptContext)
-			throws IOException, InterruptedException {
-		Configuration conf = taskAttemptContext.getConfiguration();
-		String extension = "";
-		Path file = getDefaultWorkFile(taskAttemptContext, extension);
-		return new Cifs2HDFSByteRecordWriter(file, conf);
+	protected void setup(Context context) throws IOException, InterruptedException {
+		super.setup(context);
 	}
 }

@@ -26,17 +26,17 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.alias.CredentialProvider;
 import org.apache.hadoop.security.alias.CredentialProviderFactory;
 
-public final class Cifs2HDFSCredentialProvider {
+public final class CifsCredentialProvider {
 
-	private static final Log LOG = LogFactory.getLog(Cifs2HDFSCredentialProvider.class);
+	private static final Log LOG = LogFactory.getLog(CifsCredentialProvider.class);
 
-	private static final Cifs2HDFSCredentialProvider CRED_PROVIDER = new Cifs2HDFSCredentialProvider();
+	private static final CifsCredentialProvider CRED_PROVIDER = new CifsCredentialProvider();
 
-	public Cifs2HDFSCredentialProvider() {
+	public CifsCredentialProvider() {
 		//
 	}
 
-	public static Cifs2HDFSCredentialProvider getInstance() {
+	public static CifsCredentialProvider getInstance() {
 		return CRED_PROVIDER;
 	}
 

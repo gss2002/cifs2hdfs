@@ -25,7 +25,7 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.cifs.CifsClient;
-import org.apache.hadoop.cifs.password.Cifs2HDFSCredentialProvider;
+import org.apache.hadoop.cifs.password.CifsCredentialProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
@@ -53,26 +53,26 @@ public class Cifs2HDFSInputFormat extends FileInputFormat<Text, NullWritable> {
 		List<InputSplit> splits = new ArrayList<InputSplit>();
 		String cifsFile = null;
 		Configuration conf = job.getConfiguration();
-		String pwd = conf.get(Constants.CIFS2HDFS_PASS);
-		boolean ignoreTopFolder = conf.getBoolean(Constants.CIFS2HDFS_IGNORE_TOP_LEVEL_FOLDER_FILES, false);
-		boolean noNesting = conf.getBoolean(Constants.CIFS2HDFS_NO_NEST, false);
-		if (conf.get(Constants.CIFS2HDFS_FILENAME) != null) {
-			cifsFile = conf.get(Constants.CIFS2HDFS_FILENAME);
+		String pwd = conf.get(Constants.CIFS_PASS);
+		boolean ignoreTopFolder = conf.getBoolean(Constants.IGNORE_TOP_LEVEL_FOLDER_FILES, false);
+		boolean noNesting = conf.getBoolean(Constants.NO_NEST, false);
+		if (conf.get(Constants.CIFS2HDFS_INPUT_FILENAME) != null) {
+			cifsFile = conf.get(Constants.CIFS2HDFS_INPUT_FILENAME);
 		}
 
-		String pwdAlias = conf.get(Constants.CIFS2HDFS_PASS_ALIAS);
+		String pwdAlias = conf.get(Constants.CIFS_PASS_ALIAS);
 		if (pwdAlias != null) {
-			Cifs2HDFSCredentialProvider creds = new Cifs2HDFSCredentialProvider();
+			CifsCredentialProvider creds = new CifsCredentialProvider();
 			pwd = new String(creds.getCredentialString(conf.get("hadoop.security.credential.provider.path"),
-					conf.get(Constants.CIFS2HDFS_PASS_ALIAS), conf));
+					conf.get(Constants.CIFS_PASS_ALIAS), conf));
 		}
-		Integer maxDepth = conf.getInt(Constants.CIFS2HDFS_MAXDEPTH, -1);
+		Integer maxDepth = conf.getInt(Constants.MAXDEPTH, -1);
 
-		cifsClient = new CifsClient(conf.get(Constants.CIFS2HDFS_LOGON_TO), conf.get(Constants.CIFS2HDFS_USERID), pwd,
-				conf.get(Constants.CIFS2HDFS_DOMAIN), Integer.valueOf(maxDepth), noNesting);
+		cifsClient = new CifsClient(conf.get(Constants.CIFS_LOGON_TO), conf.get(Constants.CIFS_USERID), pwd,
+				conf.get(Constants.CIFS_DOMAIN), Integer.valueOf(maxDepth), noNesting);
 
-		SmbFile smbFileConn = cifsClient.createInitialConnection(conf.get(Constants.CIFS2HDFS_HOST),
-				conf.get(Constants.CIFS2HDFS_FOLDER));
+		SmbFile smbFileConn = cifsClient.createInitialConnection(conf.get(Constants.CIFS_HOST),
+				conf.get(Constants.CIFS2HDFS_INPUT_FOLDER));
 		cifsClient.traverse(smbFileConn, Integer.valueOf(maxDepth), ignoreTopFolder, cifsFile);
 		cifsFileList = cifsClient.getFileList();
 		int count = cifsFileList.size();

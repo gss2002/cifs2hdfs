@@ -23,18 +23,30 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.OutputCommitter;
+import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-public class Cifs2HDFSOutputFormat extends FileOutputFormat<Text, NullWritable> {
+public class HDFS2CifsOutputFormat extends OutputFormat<Text, NullWritable> {
 
 	@Override
 	public RecordWriter<Text, NullWritable> getRecordWriter(TaskAttemptContext taskAttemptContext)
 			throws IOException, InterruptedException {
 		Configuration conf = taskAttemptContext.getConfiguration();
-		String extension = "";
-		Path file = getDefaultWorkFile(taskAttemptContext, extension);
-		return new Cifs2HDFSByteRecordWriter(file, conf);
+		return new HDFS2CifsByteRecordWriter(conf);
 	}
+
+	@Override
+	public void checkOutputSpecs(JobContext context) throws IOException, InterruptedException {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	  public OutputCommitter getOutputCommitter(TaskAttemptContext context)
+		      throws IOException, InterruptedException {
+		    return new NullOutputCommitter();
+		  }
 }

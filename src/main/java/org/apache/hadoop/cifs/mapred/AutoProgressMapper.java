@@ -26,7 +26,7 @@ import org.apache.commons.logging.LogFactory;
  * Identity mapper that continuously reports progress via a background thread.
  */
 public class AutoProgressMapper<KEYIN, VALIN, KEYOUT, VALOUT>
-    extends Cifs2HDFSMapper<KEYIN, VALIN, KEYOUT, VALOUT> {
+    extends CifsMapper<KEYIN, VALIN, KEYOUT, VALOUT> {
 
   public static final Log LOG = LogFactory.getLog(
       AutoProgressMapper.class.getName());

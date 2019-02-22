@@ -19,22 +19,31 @@
 package org.apache.hadoop.cifs.mapred;
 
 import java.io.IOException;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
+
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.RecordWriter;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-public class Cifs2HDFSOutputFormat extends FileOutputFormat<Text, NullWritable> {
+public class HDFS2CifsCoreMapper extends AutoProgressMapper<Text, NullWritable, Text, NullWritable> {
 
-	@Override
-	public RecordWriter<Text, NullWritable> getRecordWriter(TaskAttemptContext taskAttemptContext)
+	public HDFS2CifsCoreMapper() {
+	  }
+
+	  protected void setup(Context context)
+	      throws IOException, InterruptedException {
+	    super.setup(context);
+
+
+	  }
+	
+	
+	
+	protected void map(Text key, NullWritable value, Context context)
 			throws IOException, InterruptedException {
-		Configuration conf = taskAttemptContext.getConfiguration();
-		String extension = "";
-		Path file = getDefaultWorkFile(taskAttemptContext, extension);
-		return new Cifs2HDFSByteRecordWriter(file, conf);
+		context.write(key, value);
+
+		
 	}
+	
+	
 }
+

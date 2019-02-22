@@ -15,13 +15,11 @@ import org.apache.hadoop.security.UserGroupInformation;
 import jcifs.smb.SmbFile;
 
 public class Cifs2HDFSThread extends Thread {
-	Configuration conf;
-	UserGroupInformation ugi;
 	SmbFile smbFile;
+	HdfsClient hdfsClient;
 	String hdfsPath;
 	String cifsHost;
 	String cifsFolder;
-	FileSystem fileSystem;
 
 	public Cifs2HDFSThread(ThreadGroup tg, String name, SmbFile smbFile, String hdfsPath, String cifsHost,
 			String cifsFolder, boolean setKrb, String keytabupn, String keytab) {
@@ -30,30 +28,13 @@ public class Cifs2HDFSThread extends Thread {
 		this.hdfsPath = hdfsPath;
 		this.cifsHost = cifsHost;
 		this.cifsFolder = cifsFolder;
-
-		// Goes to get hadoop configuration files
-		setConfig();
-
-		setConfig();
-		UserGroupInformation.setConfiguration(conf);
-		if (UserGroupInformation.isSecurityEnabled()) {
-			try {
-				if (setKrb == true) {
-					ugi = UserGroupInformation.loginUserFromKeytabAndReturnUGI(keytabupn, keytab);
-				} else {
-					ugi = UserGroupInformation.getCurrentUser();
-				}
-			} catch (IOException e3) {
-				// TODO Auto-generated catch block
-				e3.printStackTrace();
-				System.out.println("Exception Getting Credentials Exiting!");
-				System.exit(1);
-			}
-		}
+		// Goes to get hadoop configuration files and sets up kerberos and such
+		hdfsClient = new HdfsClient(setKrb, keytabupn, keytab);
+		
 
 		// Goes to get Hadoop File System Named Node information and such from
 		// the configuration.
-		getFS();
+		hdfsClient.getFS();
 	}
 
 	public void run() {
@@ -76,7 +57,7 @@ public class Cifs2HDFSThread extends Thread {
 			// handle
 			if (UserGroupInformation.isSecurityEnabled()) {
 
-				ugi.doAs(new PrivilegedExceptionAction<Void>() {
+				hdfsClient.ugi.doAs(new PrivilegedExceptionAction<Void>() {
 					public Void run() throws Exception {
 						if (smbFile.canRead()) {
 							System.out.println("SmbFile: " + smbFile.getPath());
@@ -126,10 +107,10 @@ public class Cifs2HDFSThread extends Thread {
 			// Cifs server
 			Path hdfsWritePath = new Path(hdfsPath + "/" + filePath);
 			Path parentPath = hdfsWritePath.getParent();
-			if (!(fileSystem.exists(parentPath))) {
-				fileSystem.mkdirs(parentPath);
+			if (!(hdfsClient.fileSystem.exists(parentPath))) {
+				hdfsClient.fileSystem.mkdirs(parentPath);
 			}
-			FSDataOutputStream out = fileSystem.create(hdfsWritePath);
+			FSDataOutputStream out = hdfsClient.fileSystem.create(hdfsWritePath);
 			// This reads the bytes from the SMBFile inputStream below it's
 			// buffered with 1MB and uses a BufferedInputStream as CIFS
 			// getInputStream
@@ -172,24 +153,4 @@ public class Cifs2HDFSThread extends Thread {
 
 	}
 
-	// This gets the HDFS File System Config and stores it in a variable for use
-	// throughout the program
-	public void getFS() {
-		try {
-			fileSystem = FileSystem.get(conf);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
-	// This gets the Hadoop Configuration files loads them into a Configuration
-	// object for use throughout the program
-	public void setConfig() {
-		conf = new Configuration();
-		conf.addResource(new Path("/etc/hadoop/conf/core-site.xml"));
-		conf.addResource(new Path("/etc/hadoop/conf/hdfs-site.xml"));
-		conf.addResource(new Path("/etc/hadoop/conf/mapred-site.xml"));
-		conf.addResource(new Path("/etc/hadoop/conf/yarn-site.xml"));
-	}
 }
