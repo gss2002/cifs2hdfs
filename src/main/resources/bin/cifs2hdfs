@@ -18,11 +18,10 @@
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
-HADOOP_HOME_PATH=/usr/hdp/current/hadoop-client
-HADOOP_CONFIG_SCRIPT=$HADOOP_HOME_PATH/libexec/hadoop-config.sh
-HADOOP_CLIENT_LIBS=$HADOOP_HOME_PATH/client
+HADOOP_CONFIG_SCRIPT=/etc/hadoop/conf/hadoop-env.sh
 if [ -e $HADOOP_CONFIG_SCRIPT ] ; then 
         .  $HADOOP_CONFIG_SCRIPT
+        HADOOP_CLIENT_LIBS=$HADOOP_HOME/client
 else
         echo "Hadoop Client not Installed on Node"
         exit 1
