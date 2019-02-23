@@ -13,13 +13,13 @@
             <main-class>org.apache.hadoop.cifs.mapred.Cifs2HDFSDriver</main-class>
             <arg>-cifs_domain</arg>
             <arg>HDPUSR.SENIA.ORG</arg>
-            <arg>-cifs_folder</arg>
+            <arg>-cifs_input_folder</arg>
             <arg>/HDP/POC/HDFS_TEST/</arg>
             <arg>-cifs_host</arg>
             <arg>gssnas.senia.org</arg>
-            <arg>-hdfs_outdir</arg>
+            <arg>-hdfs_output_folder</arg>
             <arg>/user/gss2002/gss_cifs</arg>
-            <arg>-cifs_transfer_limit</arg>
+            <arg>-transfer_limit</arg>
             <arg>2</arg>
             <arg>-cifs_userid</arg>
             <arg>gss2002</arg>
