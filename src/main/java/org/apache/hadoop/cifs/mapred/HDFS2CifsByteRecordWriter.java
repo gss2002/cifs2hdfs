@@ -79,7 +79,7 @@ public class HDFS2CifsByteRecordWriter extends RecordWriter<Text, NullWritable> 
 		String cifsOutputFile = hdfsFileString.split("/")[hdfsFileString.split("/").length - 1];
 		LOG.info("cifsOutputFile: " + cifsOutputFile);
 
-		SmbFile remoteFile = new SmbFile(cifsSrvPath+"/"+cifsOutputFile, cifsClient.auth);
+		SmbFile remoteFile = new SmbFile(cifsSrvPath+"/"+cifsOutputFile, cifsClient.authCtx);
 		out = new SmbFileOutputStream(remoteFile, true);
 
 		key = null;

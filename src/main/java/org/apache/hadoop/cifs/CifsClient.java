@@ -24,9 +24,17 @@ import java.net.MalformedURLException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
+
+import jcifs.CIFSContext;
+import jcifs.CIFSException;
+import jcifs.context.BaseContext;
 import jcifs.smb.DosFileFilter;
 import jcifs.smb.NtlmPasswordAuthentication;
+import jcifs.smb.NtlmPasswordAuthenticator;
+import jcifs.smb.SmbException;
 import jcifs.smb.SmbFile;
+import jcifs.config.PropertyConfiguration;
 
 public class CifsClient {
 	InetAddress inetAddress = null;
@@ -41,7 +49,7 @@ public class CifsClient {
 	int maxDepth;
 	DosFileFilter dirOnly;
 	SmbFile smbFile = null;
-	public NtlmPasswordAuthentication auth;
+	public CIFSContext authCtx;
 	private List<String> smbFileList;
 
 	/**
@@ -80,21 +88,36 @@ public class CifsClient {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
-
 		// Sets ups JCIFS which is acutally the library used to make the
-		// CIFS/SMB Call via Java
-		jcifs.Config.setProperty("jcifs.smb.client.listSize", "1200");
-		jcifs.Config.setProperty("jcifs.smb.client.attrExpirationPeriod", "0");
-		jcifs.Config.setProperty("jcifs.netbios.wins", inetAddress.getHostAddress().toString());
-		// This spoofs logon rights
+		// CIFS/SMB Call via Java		
+		BaseContext baseCxt = null;
+		Properties jcifsProperties  = new Properties();
+		jcifsProperties.setProperty("jcifs.smb.client.listSize", "1200");
+		jcifsProperties.setProperty("jcifs.smb.client.attrExpirationPeriod", "0");
+		jcifsProperties.setProperty("jcifs.netbios.wins", inetAddress.getHostAddress().toString());
+		jcifsProperties.setProperty("jcifs.smb.client.minVersion", "SMB1");
+		jcifsProperties.setProperty("jcifs.smb.client.maxVersion", "SMB311");
+		jcifsProperties.setProperty("jcifs.smb.client.dfs.disabled","true");
+
+				// This spoofs logon rights
 		if (cifsLogonTo != null) {
-			jcifs.Config.setProperty("jcifs.netbios.hostname", cifsLogonTo.toUpperCase());
+			jcifsProperties.setProperty("jcifs.netbios.hostname", cifsLogonTo.toUpperCase());
 
 		} else {
-			jcifs.Config.setProperty("jcifs.netbios.hostname", "W" + userId.toUpperCase());
+			jcifsProperties.setProperty("jcifs.netbios.hostname", "W" + userId.toUpperCase());
 		}
-		auth = new NtlmPasswordAuthentication(cifsDomain, userId, pwd);
+		jcifs.Configuration config = null;
+		try {
+			config = new PropertyConfiguration(jcifsProperties);
+		} catch (CIFSException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		baseCxt = new BaseContext(config);
+		authCtx = baseCxt.withCredentials(new NtlmPasswordAuthenticator(cifsDomain, userId,
+		                    pwd));
 
+		
 		// Creates a filter on * with attributes of directory only
 		dirOnly = new DosFileFilter("*", SmbFile.ATTR_DIRECTORY);
 
@@ -105,7 +128,7 @@ public class CifsClient {
 		// Concats the cifshostin with the initial folder name
 		String srv_path = cifsHost + cifsFolder;
 		try {
-			smbFile = new SmbFile("smb://" + srv_path, this.auth);
+			smbFile = new SmbFile("smb://" + srv_path, authCtx);
 		} catch (MalformedURLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -135,13 +158,18 @@ public class CifsClient {
 
 		// This gets the file handle and gets the initial file list.
 		if (f.isDirectory() && !(noNesting)) {
-			SmbFile[] l;
+			SmbFile[] l = null;
 			if (ignoreTopFolder) {
 				l = f.listFiles(dirOnly);
 			} else if (fileOnly) {
 				l = f.listFiles(fileFilter);
 			} else {
-				l = f.listFiles();
+				try {
+					l = f.listFiles();
+				} catch (SmbException e) {
+					System.out.println(SmbException.getMessageByCode(e.getNtStatus()));
+					e.printStackTrace();
+				}
 			}
 
 			for (int i = 0; l != null && i < l.length; i++) {

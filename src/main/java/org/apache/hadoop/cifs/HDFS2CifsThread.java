@@ -55,7 +55,7 @@ public class HDFS2CifsThread extends Thread {
 						Path hdfsFilePath = new Path(hdfsFile);
 						String cifsOutputFile = hdfsFile.split("/")[hdfsFile.split("/").length - 1];
 						System.out.println("cifsOutputFile: " + cifsOutputFile);
-						SmbFile remoteFile = new SmbFile(cifsSrvPath+"/"+cifsOutputFile, cifsClient.auth);
+						SmbFile remoteFile = new SmbFile(cifsSrvPath+"/"+cifsOutputFile, cifsClient.authCtx);
 						uploadFile(remoteFile, hdfsFilePath);
 						return null;
 					}

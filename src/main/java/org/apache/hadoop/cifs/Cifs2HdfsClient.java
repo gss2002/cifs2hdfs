@@ -311,7 +311,7 @@ public class Cifs2HdfsClient {
 				}
 				try {
 					String threadName = "cifs" + i;
-					sc = new Cifs2HDFSThread(cifsTg, threadName, new SmbFile(fileName, cifsClient.auth),
+					sc = new Cifs2HDFSThread(cifsTg, threadName, new SmbFile(fileName, cifsClient.authCtx),
 							hdfsOutputFolder, cifsHost, cifsInputFolder, setKrb, keytabupn, keytab);
 				} catch (MalformedURLException e) {
 					// TODO Auto-generated catch block

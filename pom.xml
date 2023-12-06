@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
 	<!-- Licensed under the Apache License, Version 2.0 (the "License"); you 
@@ -21,11 +22,12 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<install.user>root</install.user>
 		<java.version>1.8</java.version>
-		<hadoop.version>2.7.1</hadoop.version>
-		<jcifs.version>1.3.17</jcifs.version>
+		<hadoop.version>2.7.3</hadoop.version>
+		<jcifs.version>2.1.9</jcifs.version>
+		<bcp.version>1.69</bcp.version>
 	</properties>
-	
-		<profiles>
+
+	<profiles>
 		<profile>
 			<id>tar</id>
 			<build>
@@ -78,11 +80,11 @@
 									<directory>${app.home}/lib</directory>
 									<dependency>
 										<includes>
-											<include>jcifs:jcifs</include>
+											<include>eu.agno3.jcifs:jcifs-ng</include>
 										</includes>
 										<excludes>
 											<exclude>log4j:log4j</exclude>
-											<exclude>javax.servlet:servlet-api</exclude>	
+											<exclude>javax.servlet:servlet-api</exclude>
 										</excludes>
 									</dependency>
 									<artifact />
@@ -94,7 +96,8 @@
 									<groupname>${install.user}</groupname>
 									<sources>
 										<source>
-											<location>${project.basedir}/src/main/resources/bin/cifs2hdfs</location>
+											<location>
+												${project.basedir}/src/main/resources/bin/cifs2hdfs</location>
 										</source>
 									</sources>
 								</mapping>
@@ -106,7 +109,8 @@
 									<groupname>${install.user}</groupname>
 									<sources>
 										<source>
-											<location>${project.basedir}/src/main/resources/bin/</location>
+											<location>
+												${project.basedir}/src/main/resources/bin/</location>
 										</source>
 									</sources>
 								</mapping>
@@ -118,7 +122,8 @@
 									<groupname>${install.user}</groupname>
 									<sources>
 										<source>
-											<location>${project.basedir}/src/main/resources/oozie/</location>
+											<location>
+												${project.basedir}/src/main/resources/oozie/</location>
 										</source>
 									</sources>
 								</mapping>
@@ -147,18 +152,55 @@
 				<artifactId>maven-jar-plugin</artifactId>
 				<version>2.3.2</version>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>3.5.1</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*</exclude>
+										<exclude>oozie/*</exclude>
+										<exclude>bin/*</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<artifactSet>
+								<includes>
+									<include>org.bouncycastle:bcprov-jdk15on</include>
+								</includes>
+							</artifactSet>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 	<dependencies>
 		<dependency>
-			<groupId>jcifs</groupId>
-			<artifactId>jcifs</artifactId>
+			<groupId>eu.agno3.jcifs</groupId>
+			<artifactId>jcifs-ng</artifactId>
 			<version>${jcifs.version}</version>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk15on</artifactId>
+			<version>${bcp.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-client</artifactId>
 			<version>${hadoop.version}</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 </project>

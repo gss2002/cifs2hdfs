@@ -55,7 +55,7 @@
 		<dependencySet>
 			<useProjectArtifact>false</useProjectArtifact>
 			<includes>
-				<include>jcifs:jcifs</include>
+				<include>eu.agno3.jcifs:jcifs-ng</include>
 			</includes>
 			<excludes>
 				<exclude>log4j:log4j</exclude>
@@ -70,7 +70,7 @@
 			<binaries>
 				<outputDirectory>lib</outputDirectory>
 				<includes>
-					<include>jcifs:jcifs</include>
+					<include>eu.agno3.jcifs:jcifs-ng</include>
 				</includes>
 			</binaries>
 		</moduleSet>

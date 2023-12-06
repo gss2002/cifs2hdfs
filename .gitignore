@@ -20,3 +20,7 @@ build
 logs
 *.log
 /.apt_generated/
+/cifs2hdfs/
+cifs2hdfs
+/cifs2hdfs/*
+/dependency-reduced-pom.xml

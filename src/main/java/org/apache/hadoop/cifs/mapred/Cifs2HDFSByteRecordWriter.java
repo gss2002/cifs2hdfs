@@ -73,7 +73,7 @@ public class Cifs2HDFSByteRecordWriter extends RecordWriter<Text, NullWritable> 
 	public void write(Text key, NullWritable value) throws IOException {
 
 		String remoteFileIn = key.toString();
-		SmbFile remoteFile = new SmbFile(remoteFileIn, cifsClient.auth);
+		SmbFile remoteFile = new SmbFile(remoteFileIn, cifsClient.authCtx);
 		if (remoteFile.canRead()) {
 			String parentPath = path.getParent().toString();
 			String fileOut = remoteFileIn.replace(cifsHost, "").replace(cifsFolder, "").replace("smb://", "")
